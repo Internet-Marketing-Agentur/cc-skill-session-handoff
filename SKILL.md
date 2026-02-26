@@ -193,29 +193,32 @@ When the conversation has been going on for a while and significant work has bee
 <!-- Session Handoff — 2026-02-26 15:30 -->
 
 ## Context
-Optimierung des Neptunmaster Produktimporter n8n-Workflows für SEO-Artikeltext-Generierung mit Claude Sonnet 4.6.
+Adding OAuth2 login flow to the FastAPI backend with Google and GitHub providers.
 
 ## Progress
-- System-Prompt erweitert (PAS, FAQ, LLMO, Buybox-Format, Checkliste)
-- Claude Sonnet 4.6 via OpenRouter angebunden
-- Parse JSON Output Node eingefügt (strippt Markdown-Fences)
-- Update row in sheet Expressions gefixt
+- Google OAuth2 working (login, callback, token exchange)
+- User model extended with `provider` and `provider_id` fields
+- Alembic migration created and applied
+- Frontend redirect to /auth/google/login working
 
 ## Current State
-3-Wege-Vergleich (GPT-4.1 vs Sonnet vs Opus) abgeschlossen. Sonnet als Standard gewählt. HTML-Vergleich erstellt.
+Google flow complete. GitHub OAuth2 started — callback endpoint returns 401,
+likely a scope issue with the GitHub app configuration.
 
 ## Key Files
-- `backup/vergleich-3-wege.html` - 3-Wege-Modellvergleich
-- `backup/system-prompt-2026-02-26.txt` - Original-Prompt Backup
+- `src/auth/oauth.py` - OAuth route handlers
+- `src/models/user.py` - User model with provider fields
+- `alembic/versions/a3f8...py` - Migration for provider columns
+- `.env.example` - Updated with GITHUB_CLIENT_ID/SECRET placeholders
 
 ## Open Items
-- [ ] Produktionstest mit mehreren Produkten
-- [ ] LLM-Einstellungen (Temperature) für Sonnet optimieren
-- [ ] Output Artikeltitel Feld klären
+- [ ] Debug GitHub callback 401 (check scopes in GitHub app settings)
+- [ ] Add logout endpoint that revokes OAuth tokens
+- [ ] Write tests for both OAuth flows
 
 ## Constraints/Decisions
-- Sonnet 4.6 als Standard (Opus ~5x teurer, marginaler Qualitätsgewinn)
-- updateNode ersetzt gesamten parameters-Block — immer alle Felder mitgeben
+- Using authlib over requests-oauthlib (better async support)
+- Storing provider tokens encrypted, not plain text
 ```
 
 ## Example: Resume Output
@@ -223,19 +226,19 @@ Optimierung des Neptunmaster Produktimporter n8n-Workflows für SEO-Artikeltext-
 ```
 ## Letzte Session
 
-**Ziel:** Optimierung des Neptunmaster Produktimporter n8n-Workflows für SEO-Artikeltext-Generierung
-**Stand:** 3-Wege-Vergleich abgeschlossen, Sonnet als Standard gewählt
+**Ziel:** Adding OAuth2 login flow (Google + GitHub) to FastAPI backend
+**Stand:** Google flow complete, GitHub callback returns 401
 
 ### Erledigt
-- System-Prompt erweitert (PAS, FAQ, LLMO, Buybox-Format, Checkliste)
-- Claude Sonnet 4.6 via OpenRouter angebunden
-- Parse JSON Output Node eingefügt
-- Update row in sheet Expressions gefixt
+- Google OAuth2 working (login, callback, token exchange)
+- User model extended with provider fields
+- Alembic migration created and applied
+- Frontend redirect working
 
 ### Offene Punkte
-- [ ] Produktionstest mit mehreren Produkten
-- [ ] LLM-Einstellungen (Temperature) für Sonnet optimieren
-- [ ] Output Artikeltitel Feld klären
+- [ ] Debug GitHub callback 401 (check scopes)
+- [ ] Add logout endpoint that revokes OAuth tokens
+- [ ] Write tests for both OAuth flows
 
 Womit soll ich weitermachen?
 ```
