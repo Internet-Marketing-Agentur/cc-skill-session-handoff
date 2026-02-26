@@ -97,9 +97,7 @@ After resuming, Claude presents a summary and asks where to continue.
 session/
 ├── SKILL.md          # Skill definition (loaded by Claude Code)
 ├── README.md
-├── assets/           # Asset files (templates, images, etc.)
-├── references/       # Reference documentation
-└── scripts/          # Helper scripts
+└── LICENSE
 ```
 
 ## Requirements
