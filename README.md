@@ -29,7 +29,7 @@ Claude analyzes the conversation and writes a structured `HANDOFF.md` to your pr
 
 Say any of these:
 
-> "resume" · "weitermachen" · "fortsetzen" · "letzte session"
+> "resume" · "load" · "weitermachen" · "fortsetzen"
 
 Claude reads the handoff file, presents a summary, and asks what to work on next.
 

@@ -5,7 +5,7 @@ description: >
   SAVE: Use when (1) approaching context limits, (2) user says "handoff", "save", "save session",
   "continue later", or similar, (3) before closing a session with unfinished work.
   Writes memory/HANDOFF.md + copies to clipboard.
-  RESUME: Use when (1) user says "resume", "hand-on", "weitermachen", "letzte session",
+  RESUME: Use when (1) user says "resume", "hand-on", "weitermachen", "load",
   (2) PROACTIVELY at conversation start if memory/HANDOFF.md exists — offer to resume.
   PROACTIVE: (1) If memory/HANDOFF.md exists at session start, immediately offer resume.
   (2) When context window is getting large, suggest save before information is lost.
@@ -19,7 +19,7 @@ File-based session continuity with save and resume modes.
 
 Determine mode from user input:
 - **save**: User says "handoff", "save", "speichern", "session-handoff save", or context is running low
-- **resume**: User says "resume", "hand-on", "weitermachen", "fortsetzen", "session-handoff resume"
+- **resume**: User says "resume", "hand-on", "weitermachen", "load", "fortsetzen", "session-handoff resume"
 - **auto-detect**: If HANDOFF.md exists in memory directory and no explicit mode given, offer resume
 
 If mode is ambiguous, ask the user.
