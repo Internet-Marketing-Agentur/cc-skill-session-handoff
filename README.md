@@ -6,7 +6,12 @@ File-based session continuity for [Claude Code](https://docs.anthropic.com/en/do
 
 Every Claude Code session builds up valuable context — file paths discovered, decisions made, bugs diagnosed, approaches tried. When the session ends, all of that is lost. The next session starts from zero and has to rediscover everything.
 
-This skill solves that by capturing session state into a compact handoff file that lets the next session skip the rediscovery phase entirely.
+This skill solves that by separating two kinds of knowledge:
+
+- **Session state** (HANDOFF.md) — ephemeral: current task, open items, key files, dead ends. Consumed by the next session, then archived.
+- **Project knowledge** (CLAUDE.md) — persistent: architecture, conventions, discoveries, gotchas. Available in every session automatically.
+
+The `--learn` option bridges the two by extracting stable insights from a session into CLAUDE.md. A `CLAUDE.md.template` is included to help structure your project knowledge.
 
 ## Install
 
@@ -36,7 +41,7 @@ Say any of these:
 
 > "resume" · "load" · "weitermachen" · "fortsetzen" · "pick up" · "where did we leave off" · "last session"
 
-Claude reads the handoff file, shows a full summary (including project context, timeline, discoveries), and asks what to work on next. The handoff file is then archived to prevent duplicate resume offers.
+Claude reads the handoff file, shows a summary, and asks what to work on next. The handoff file is then archived to prevent duplicate resume offers.
 
 ### View session history
 
@@ -55,14 +60,14 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 
 | Section | Purpose |
 |---|---|
-| **Context** | Goal + project background relevant to this work |
-| **Project Context** | Tech stack, architecture, non-obvious quirks learned |
-| **Session Timeline** | Chronological history including dead ends |
-| **Discoveries** | Surprising findings, undocumented behavior, gotchas |
-| **Key Files** | Paths and their roles |
+| **Context** | Goal statement |
 | **Current State** | Exact point to resume from |
+| **Key Files** | Paths and what changed |
 | **Open Items** | Checklist of next actions |
-| **Constraints/Decisions** | Decisions and why they were made |
+| **Dead Ends** | Approaches tried and abandoned (prevents repeating them) |
+| **Decisions** | Choices made and why |
+
+Project-level knowledge (architecture, conventions, discoveries) belongs in `CLAUDE.md` instead — use `--learn` to extract it automatically.
 
 The save process is git-aware — it runs `git diff --stat` and `git status` to capture file changes that weren't explicitly discussed in conversation.
 
@@ -78,32 +83,28 @@ After saving:
 <!-- Session Handoff — 2026-02-26 15:30 -->
 
 ## Context
-Adding OAuth2 login flow to the FastAPI backend with Google and GitHub providers.
-
-## Progress
-- Google OAuth2 working (login, callback, token exchange)
-- User model extended with `provider` and `provider_id` fields
-- Alembic migration created and applied
-- Frontend redirect to /auth/google/login working
+Adding OAuth2 login flow (Google + GitHub) to FastAPI SaaS backend.
 
 ## Current State
-Google flow complete. GitHub OAuth2 started — callback endpoint returns 401,
-likely a scope issue with the GitHub app configuration.
+Google OAuth complete. GitHub callback returns 401 —
+likely scope issue in GitHub app config, not code.
 
 ## Key Files
-- `src/auth/oauth.py` - OAuth route handlers
+- `src/auth/oauth.py` - OAuth handlers (Google working, GitHub WIP)
 - `src/models/user.py` - User model with provider fields
 - `alembic/versions/a3f8...py` - Migration for provider columns
-- `.env.example` - Updated with GITHUB_CLIENT_ID/SECRET placeholders
 
 ## Open Items
-- [ ] Debug GitHub callback 401 (check scopes in GitHub app settings)
-- [ ] Add logout endpoint that revokes OAuth tokens
-- [ ] Write tests for both OAuth flows
+- [ ] Fix GitHub callback 401 — check scopes in GitHub app settings
+- [ ] Add logout endpoint (authlib has `revoke_token()`)
+- [ ] Write tests for both OAuth flows (mock with `respx`)
 
-## Constraints/Decisions
-- Using authlib over requests-oauthlib (better async support)
-- Storing provider tokens encrypted, not plain text
+## Dead Ends
+- Debugged GitHub 401 as code issue for ~20 min — it's a config issue
+
+## Decisions
+- authlib over requests-oauthlib (async support, less boilerplate)
+- Provider tokens encrypted via cryptography.fernet
 ```
 
 After resuming, Claude presents a summary and asks where to continue.
@@ -112,7 +113,8 @@ After resuming, Claude presents a summary and asks where to continue.
 
 ```
 session/
-├── SKILL.md          # Skill definition (loaded by Claude Code)
+├── SKILL.md              # Skill definition (loaded by Claude Code)
+├── CLAUDE.md.template    # Template for structuring project knowledge
 ├── README.md
 └── LICENSE
 ```

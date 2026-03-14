@@ -17,7 +17,7 @@ description: >
 
 Preserve session context across conversation boundaries so the next session can pick up exactly where this one left off.
 
-The core idea: a session produces knowledge that's expensive to rebuild — file paths discovered, decisions made, bugs diagnosed, approaches tried and rejected. HANDOFF.md captures this perishable context in a compact format that lets the next session skip the rediscovery phase entirely.
+The core idea: a session produces two kinds of knowledge — **ephemeral state** (what's in progress right now) and **persistent insights** (what we learned about the project). HANDOFF.md captures the ephemeral state so the next session can resume. Persistent insights like project architecture, conventions, and discoveries belong in CLAUDE.md where they're available in every session automatically. The `--learn` option helps bridge the two.
 
 ## Parameters
 
@@ -39,16 +39,17 @@ If ambiguous, ask the user.
 
 ### Step 1: Analyze the Session
 
-Review the entire conversation — not just the last few exchanges. Also run `git diff --stat` and `git status` to capture file changes that may not have been explicitly discussed. Identify what would be most expensive for a fresh session to rediscover:
+Review the entire conversation — not just the last few exchanges. Also run `git diff --stat` and `git status` to capture file changes that may not have been explicitly discussed.
 
-- **Goal**: What's the user trying to accomplish? What's the bigger picture?
-- **Project context**: What did we learn about the project structure, tech stack, architecture, quirks? Things that aren't obvious from the code alone.
-- **Session timeline**: What happened in what order? Include approaches that were tried and abandoned — a fresh session shouldn't repeat dead ends.
-- **Discoveries**: Surprising findings, undocumented behavior, gotchas ("the API uses GraphQL internally despite REST docs", "tests require Docker running")
+Focus on **session state** — what's needed to resume work:
+
+- **Goal**: What's the user trying to accomplish?
 - **Current state**: The exact point to resume from — what was just tried, what's next
 - **Key artifacts**: Combine files mentioned in conversation with `git diff --stat` output. This catches files that were edited but never explicitly discussed.
 - **Blockers**: Unresolved issues, pending decisions
 - **Decisions**: Choices made during the session and why
+
+Don't capture project architecture, tech stack, conventions, or discoveries here — those belong in CLAUDE.md (use `--learn` to extract them).
 
 ### Step 2: Compress Intelligently
 
@@ -56,9 +57,9 @@ The goal is information density — but err on the side of including too much ra
 
 A fresh Claude session already knows general programming concepts, standard library APIs, and common patterns — don't repeat those. Focus on what's unique to *this project* and *this session*:
 
-**High value** (include): project-specific architecture, file paths, function names, error messages, decisions with rationale, dead ends and why they failed, current hypothesis, reproduction steps, relevant IDs/URLs, discovered quirks
+**High value** (include): file paths, function names, error messages, decisions with rationale, dead ends and why they failed, current hypothesis, reproduction steps, relevant IDs/URLs
 
-**Low value** (omit): general programming knowledge, verbose explanations of standard concepts, full file contents (use path + line numbers), conversation meta-discussion
+**Low value** (omit): general programming knowledge, project architecture (belongs in CLAUDE.md), verbose explanations of standard concepts, full file contents (use path + line numbers), conversation meta-discussion
 
 **Format**: bullet points over prose, paths over content, key error lines over full traces
 
@@ -80,60 +81,58 @@ Write to `{memory_directory}/HANDOFF.md`:
 <!-- Session Handoff — {YYYY-MM-DD HH:MM} -->
 
 ## Context
-[2-3 sentence goal + project background relevant to this work]
-
-## Project Context
-- [Tech stack, architecture, or structural insight learned during session]
-- [Non-obvious project quirk or convention discovered]
-
-## Session Timeline
-1. [First thing done/tried — with outcome]
-2. [Next step — with outcome]
-3. [Dead end tried and why it was abandoned]
-4. [Current approach and where it stands]
-
-## Discoveries
-- [Surprising finding about the project]
-- [Undocumented behavior or gotcha]
-
-## Key Files
-- `path/to/file.ext` - [role/status]
+[1-2 sentence goal statement]
 
 ## Current State
 [Exact resume point — what was just done, what's next]
+
+## Key Files
+- `path/to/file.ext` - [role/status/what changed]
 
 ## Open Items
 - [ ] [Next immediate action]
 - [ ] [Subsequent action]
 
-## Constraints/Decisions
+## Dead Ends
+- [Approach tried and why it was abandoned]
+
+## Decisions
 - [Decision and why it was made]
 ```
 
-Sections with no content can be omitted. But don't omit a section just to save tokens — only if there's genuinely nothing to say.
+Keep a "Dead Ends" section when approaches were tried and abandoned — this prevents the next session from repeating them. Omit it if there were no dead ends.
 
-### Step 5: Triage to CLAUDE.md (only with `--learn`)
+### Step 5: Extract learnings to CLAUDE.md (only with `--learn`)
 
-If the user enabled learn, review the session for insights that are **stable project knowledge** — things that will be true next week, not just next session:
+If the user enabled learn, review the session for **stable project knowledge** — things that will be true next week, not just next session. Categorize them using the sections from `CLAUDE.md.template` (bundled with this skill):
 
-- Architecture decisions and rationale
-- Project conventions and patterns
-- Environment setup quirks
-- Non-obvious dependencies or requirements
-- "Always do X because Y" learnings
+- **Project Overview / Architecture**: tech stack, component relationships, structural insights
+- **Conventions**: patterns, naming, workflow rules established
+- **Environment & Setup**: setup quirks, test prerequisites, required tooling
+- **Discoveries & Gotchas**: undocumented behavior, surprising dependencies, "looks wrong but is intentional"
+- **Key Decisions**: choices made with rationale and date
 
-Present these as a suggested addition to CLAUDE.md:
+If the project has no CLAUDE.md yet, suggest creating one from the template. If one exists, suggest additions that fit the existing structure.
+
+Present suggestions grouped by section:
 
 ```
-I found these insights that might belong in CLAUDE.md (persistent project knowledge):
+These session insights could go into CLAUDE.md:
 
-- [Insight 1]
-- [Insight 2]
+**Discoveries & Gotchas**
+- Auth middleware in `src/middleware/auth.py` swallows errors silently — returns 401 without logging
 
-Should I append these to CLAUDE.md?
+**Environment & Setup**
+- Alembic env.py needs async patch for this project (fix in `alembic/env.py:42-58`)
+- Tests require `TEST_DATABASE_URL` env var
+
+**Key Decisions**
+- 2026-02-26: authlib over requests-oauthlib — better async support
+
+Should I add these to CLAUDE.md?
 ```
 
-Only append after user confirmation. Format as concise bullet points that fit the existing CLAUDE.md style.
+Only append after user confirmation.
 
 ### Step 6: Confirm to User
 
@@ -161,22 +160,13 @@ MEMORY.md provides stable project knowledge (managed by auto-memory). HANDOFF.md
 
 ### Step 2: Show Summary
 
-Present a concise overview in the user's language. Include all sections that were saved — don't compress away the project context, timeline, or discoveries, as these are what make the resume valuable:
+Present a concise overview in the user's language. Mirror the sections from the handoff:
 
 ```
-## Last Session
+## Last Session ({date})
 
-**Goal:** [from Context section]
-**Status:** [from Current State section]
-
-### Project Context
-- [Tech stack, architecture insights]
-
-### Session Timeline
-1. [What happened in order, including dead ends]
-
-### Discoveries
-- [Surprising findings, gotchas]
+**Goal:** [from Context]
+**Status:** [from Current State]
 
 ### Key Files
 - `path` - [role]
@@ -184,11 +174,14 @@ Present a concise overview in the user's language. Include all sections that wer
 ### Open Items
 - [ ] [Remaining tasks]
 
-### Constraints/Decisions
-- [Decision and rationale]
+### Dead Ends
+- [What was tried and why it didn't work]
+
+### Decisions
+- [Key decisions from this session]
 ```
 
-Omit sections that are empty in the handoff, but don't omit sections just to keep it short.
+Omit sections that are empty in the handoff.
 
 ### Step 3: Ask What To Continue With
 
@@ -271,48 +264,52 @@ When significant work has accumulated and the conversation is getting long, sugg
 <!-- Session Handoff — 2026-02-26 15:30 -->
 
 ## Context
-Adding OAuth2 login flow to the FastAPI backend (Google + GitHub providers).
-The app is a SaaS dashboard with existing JWT auth — OAuth is an additional login method, not a replacement.
-
-## Project Context
-- FastAPI backend in `src/`, Alembic for migrations, PostgreSQL
-- Auth middleware in `src/middleware/auth.py` — checks JWT on every request
-- Frontend is React (Vite) in `frontend/`, uses `react-router` v6
-- Tests use `pytest` + `httpx.AsyncClient`, need `TEST_DATABASE_URL` env var
-
-## Session Timeline
-1. Evaluated authlib vs requests-oauthlib — chose authlib (better async, less boilerplate)
-2. Added Google OAuth: routes, callback, token exchange — working end to end
-3. Extended User model with `provider` + `provider_id` fields, wrote Alembic migration
-4. Tried adding GitHub OAuth using same pattern as Google
-5. GitHub callback returns 401 — debugged for ~20 min, likely a scope issue in the GitHub app config (not a code problem)
-
-## Discoveries
-- `src/middleware/auth.py` silently swallows auth errors and returns 401 without logging — made debugging GitHub OAuth harder. Consider adding debug logging.
-- Alembic `env.py` was configured for sync only — had to patch it for async. Fix is in `alembic/env.py:42-58`.
-
-## Key Files
-- `src/auth/oauth.py` - OAuth route handlers (Google working, GitHub WIP)
-- `src/models/user.py` - User model with provider fields
-- `alembic/versions/a3f8...py` - Migration for provider columns
-- `.env.example` - Updated with GITHUB_CLIENT_ID/SECRET placeholders
-- `src/middleware/auth.py` - Auth middleware (no changes, but relevant for debugging)
+Adding OAuth2 login flow (Google + GitHub) to FastAPI SaaS backend.
 
 ## Current State
 Google OAuth complete and tested manually. GitHub OAuth callback returns 401 —
 most likely the GitHub OAuth App needs `read:user` scope added (currently only has `user:email`).
 Next step: check GitHub app settings, not code.
 
-## Open Items
-- [ ] Fix GitHub callback 401 — check scopes in GitHub app settings (Settings > Developer > OAuth Apps)
-- [ ] Add logout endpoint that revokes OAuth tokens (authlib has `revoke_token()`)
-- [ ] Write tests for both OAuth flows (mock external OAuth with `respx`)
-- [ ] Consider adding debug logging to auth middleware
+## Key Files
+- `src/auth/oauth.py` - OAuth route handlers (Google working, GitHub WIP)
+- `src/models/user.py` - User model with `provider` + `provider_id` fields
+- `alembic/versions/a3f8...py` - Migration for provider columns
+- `.env.example` - Updated with GITHUB_CLIENT_ID/SECRET placeholders
 
-## Constraints/Decisions
-- Using authlib over requests-oauthlib — better async support, less boilerplate
-- Storing provider tokens encrypted via `cryptography.fernet`, key in env var
-- OAuth is additive — existing JWT login stays, users can link OAuth later
+## Open Items
+- [ ] Fix GitHub callback 401 — check scopes in GitHub app settings
+- [ ] Add logout endpoint (authlib has `revoke_token()`)
+- [ ] Write tests for both OAuth flows (mock with `respx`)
+
+## Dead Ends
+- Tried debugging GitHub 401 as a code issue for ~20 min — it's a config issue (scope missing in GitHub app settings)
+
+## Decisions
+- authlib over requests-oauthlib — better async support, less boilerplate
+- Provider tokens encrypted via `cryptography.fernet`, key in env var
+- OAuth is additive — existing JWT login stays
+```
+
+**`--learn` output** (suggested CLAUDE.md additions):
+
+```
+These session insights could go into CLAUDE.md:
+
+**Architecture**
+- OAuth is additive to existing JWT auth, not a replacement
+
+**Environment & Setup**
+- Alembic env.py needs async patch (fix in `alembic/env.py:42-58`)
+- Tests require `TEST_DATABASE_URL` env var
+
+**Discoveries & Gotchas**
+- Auth middleware in `src/middleware/auth.py` swallows errors silently — returns 401 without logging
+
+**Key Decisions**
+- 2026-02-26: authlib over requests-oauthlib (async support)
+
+Should I add these to CLAUDE.md?
 ```
 
 **Resume output** (shown to user):
@@ -320,39 +317,20 @@ Next step: check GitHub app settings, not code.
 ```
 ## Last Session (2026-02-26)
 
-**Goal:** OAuth2 login (Google + GitHub) for FastAPI SaaS backend
-**Status:** Google complete, GitHub callback 401 (likely scope config issue)
-
-### Project Context
-- FastAPI + Alembic + PostgreSQL, React frontend (Vite)
-- Existing JWT auth in `src/middleware/auth.py`
-- Tests: pytest + httpx.AsyncClient, needs TEST_DATABASE_URL
-
-### Session Timeline
-1. Chose authlib for OAuth (async support)
-2. Google OAuth — working end to end
-3. User model + migration for provider fields
-4. GitHub OAuth — callback returns 401, likely scope issue (not code)
-
-### Discoveries
-- Auth middleware swallows errors silently — makes debugging hard
-- Alembic env.py needed async patch (fix in `alembic/env.py:42-58`)
+**Goal:** OAuth2 login (Google + GitHub) for FastAPI backend
+**Status:** Google complete, GitHub callback 401 (scope config issue)
 
 ### Key Files
 - `src/auth/oauth.py` - OAuth handlers (Google working, GitHub WIP)
 - `src/models/user.py` - User model with provider fields
-- `src/middleware/auth.py` - Auth middleware (relevant for debugging)
 
 ### Open Items
 - [ ] Fix GitHub 401 (check app scopes, not code)
 - [ ] Logout endpoint with token revocation
 - [ ] Tests with respx mocking
-- [ ] Debug logging for auth middleware
 
-### Constraints/Decisions
-- authlib over requests-oauthlib (async support)
-- Provider tokens encrypted via cryptography.fernet
-- OAuth is additive — JWT login stays
+### Dead Ends
+- GitHub 401 is not a code issue — scope missing in GitHub app config
 
 What should I continue with?
 ```
