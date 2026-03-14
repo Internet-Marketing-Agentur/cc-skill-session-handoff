@@ -95,7 +95,7 @@ After resuming, Claude presents a summary and asks where to continue.
 ## File structure
 
 ```
-cc-skill-session-handoff/
+session/
 ├── SKILL.md          # Skill definition (loaded by Claude Code)
 ├── README.md
 └── LICENSE
