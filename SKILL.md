@@ -5,7 +5,8 @@ description: >
   Use this skill whenever the user wants to save, store, persist, or hand off their current session state,
   or when they want to resume, continue, restore, or pick up where they left off.
   Trigger words: "handoff", "save session", "speichern", "save", "continue later", "resume",
-  "weitermachen", "load", "fortsetzen", "pick up", "where did we leave off", "last session".
+  "weitermachen", "load", "fortsetzen", "pick up", "where did we leave off", "last session",
+  "session history", "past sessions".
   Also trigger PROACTIVELY: (1) at session start if memory/HANDOFF.md exists — offer to resume,
   (2) when context window is getting large — suggest saving before information is lost.
   Even if the user doesn't explicitly mention "session" or "handoff", trigger this skill whenever
@@ -27,6 +28,7 @@ The core idea: a session produces knowledge that's expensive to rebuild — file
 Determine mode from user input:
 - **save**: "handoff", "save", "speichern", "continue later", "save session", or context is running low
 - **resume**: "resume", "load", "weitermachen", "fortsetzen", "pick up", "where did we leave off", "last session"
+- **history**: "session history", "past sessions", "session log", `/session history`
 - **auto-detect**: If `{memory_directory}/HANDOFF.md` exists and no explicit mode given, offer resume
 
 If ambiguous, ask the user.
@@ -37,14 +39,14 @@ If ambiguous, ask the user.
 
 ### Step 1: Analyze the Session
 
-Review the entire conversation — not just the last few exchanges. Identify what would be most expensive for a fresh session to rediscover:
+Review the entire conversation — not just the last few exchanges. Also run `git diff --stat` and `git status` to capture file changes that may not have been explicitly discussed. Identify what would be most expensive for a fresh session to rediscover:
 
 - **Goal**: What's the user trying to accomplish? What's the bigger picture?
 - **Project context**: What did we learn about the project structure, tech stack, architecture, quirks? Things that aren't obvious from the code alone.
 - **Session timeline**: What happened in what order? Include approaches that were tried and abandoned — a fresh session shouldn't repeat dead ends.
 - **Discoveries**: Surprising findings, undocumented behavior, gotchas ("the API uses GraphQL internally despite REST docs", "tests require Docker running")
 - **Current state**: The exact point to resume from — what was just tried, what's next
-- **Key artifacts**: Files modified, important paths, commands that worked
+- **Key artifacts**: Combine files mentioned in conversation with `git diff --stat` output. This catches files that were edited but never explicitly discussed.
 - **Blockers**: Unresolved issues, pending decisions
 - **Decisions**: Choices made during the session and why
 
@@ -138,16 +140,11 @@ Only append after user confirmation. Format as concise bullet points that fit th
 After writing the file:
 
 1. **Display** the handoff content in a fenced code block
-2. **Copy to clipboard** (detect platform):
+2. **Copy to clipboard** using a platform-detecting fallback chain:
    ```bash
-   # macOS
-   cat "{memory_directory}/HANDOFF.md" | pbcopy
-   # Linux (X11)
-   cat "{memory_directory}/HANDOFF.md" | xclip -selection clipboard
-   # Linux (Wayland)
-   cat "{memory_directory}/HANDOFF.md" | wl-copy
+   cat "{memory_directory}/HANDOFF.md" | (pbcopy 2>/dev/null || xclip -selection clipboard 2>/dev/null || wl-copy 2>/dev/null || true)
    ```
-   If clipboard tools aren't available, skip silently — the file is saved either way.
+   This tries macOS (`pbcopy`), Linux X11 (`xclip`), Linux Wayland (`wl-copy`) in order. If none are available, it silently succeeds — the file is saved either way.
 3. **Confirm** in the user's language, e.g.: "Session saved to `memory/HANDOFF.md` and copied to clipboard."
 
 ---
@@ -164,7 +161,7 @@ MEMORY.md provides stable project knowledge (managed by auto-memory). HANDOFF.md
 
 ### Step 2: Show Summary
 
-Present a concise overview in the user's language:
+Present a concise overview in the user's language. Include all sections that were saved — don't compress away the project context, timeline, or discoveries, as these are what make the resume valuable:
 
 ```
 ## Last Session
@@ -172,15 +169,26 @@ Present a concise overview in the user's language:
 **Goal:** [from Context section]
 **Status:** [from Current State section]
 
-### Completed
-- [Progress items]
+### Project Context
+- [Tech stack, architecture insights]
+
+### Session Timeline
+1. [What happened in order, including dead ends]
+
+### Discoveries
+- [Surprising findings, gotchas]
+
+### Key Files
+- `path` - [role]
 
 ### Open Items
 - [ ] [Remaining tasks]
 
-### Key Files
-- `path` - [role]
+### Constraints/Decisions
+- [Decision and rationale]
 ```
+
+Omit sections that are empty in the handoff, but don't omit sections just to keep it short.
 
 ### Step 3: Ask What To Continue With
 
@@ -196,10 +204,50 @@ mv "{memory_directory}/HANDOFF.md" "{memory_directory}/HANDOFF-{YYYY-MM-DD}.md"
 
 ---
 
+## Mode: HISTORY
+
+Show a summary of past sessions from archived handoff files.
+
+### Step 1: Find Archives
+
+List all `HANDOFF-*.md` files in `{memory_directory}/`, sorted by date (newest first). Also check if a current `HANDOFF.md` exists (unarchived).
+
+### Step 2: Display Timeline
+
+For each archived handoff, read the `<!-- Session Handoff — ... -->` header and the `## Context` section. Present a compact timeline:
+
+```
+## Session History
+
+| Date | Goal | Status |
+|---|---|---|
+| 2026-03-14 | OAuth2 login flow (Google + GitHub) | GitHub callback 401 |
+| 2026-03-12 | Set up CI/CD pipeline | Completed |
+| 2026-03-10 | Initial project scaffolding | Completed |
+```
+
+If the user wants details on a specific session, read that archive file and show the full content.
+
+### Step 3: Offer Cleanup
+
+If there are more than 10 archived handoffs, suggest cleaning up old ones:
+
+> "You have [N] archived handoffs. Want me to remove archives older than 30 days?"
+
+Only delete after confirmation.
+
+---
+
 ## Proactive Behavior
 
 ### At Session Start
-If `{memory_directory}/HANDOFF.md` exists, offer to resume. This is the single most valuable thing this skill does — it bridges the gap between sessions without requiring the user to remember what they were doing.
+If `{memory_directory}/HANDOFF.md` exists, offer to resume. Check the file's date (from the `<!-- Session Handoff — ... -->` header) and mention how old it is:
+
+- **< 24h**: "I found a handoff from earlier today. Pick up where you left off?"
+- **1-7 days**: "I found a handoff from [N days ago]. Want to resume?"
+- **> 7 days**: "I found a handoff from [date], but it's [N days/weeks] old — it may be outdated. Want to review it, or start fresh?"
+
+This is the single most valuable thing this skill does — it bridges the gap between sessions without requiring the user to remember what they were doing.
 
 ### During Long Sessions
 When significant work has accumulated and the conversation is getting long, suggest saving a handoff. Context loss from a session ending without a save is the problem this skill exists to solve.
@@ -270,26 +318,41 @@ Next step: check GitHub app settings, not code.
 **Resume output** (shown to user):
 
 ```
-## Last Session
+## Last Session (2026-02-26)
 
 **Goal:** OAuth2 login (Google + GitHub) for FastAPI SaaS backend
 **Status:** Google complete, GitHub callback 401 (likely scope config issue)
+
+### Project Context
+- FastAPI + Alembic + PostgreSQL, React frontend (Vite)
+- Existing JWT auth in `src/middleware/auth.py`
+- Tests: pytest + httpx.AsyncClient, needs TEST_DATABASE_URL
 
 ### Session Timeline
 1. Chose authlib for OAuth (async support)
 2. Google OAuth — working end to end
 3. User model + migration for provider fields
-4. GitHub OAuth — callback returns 401, likely scope issue
+4. GitHub OAuth — callback returns 401, likely scope issue (not code)
 
 ### Discoveries
 - Auth middleware swallows errors silently — makes debugging hard
-- Alembic env.py needed async patch
+- Alembic env.py needed async patch (fix in `alembic/env.py:42-58`)
+
+### Key Files
+- `src/auth/oauth.py` - OAuth handlers (Google working, GitHub WIP)
+- `src/models/user.py` - User model with provider fields
+- `src/middleware/auth.py` - Auth middleware (relevant for debugging)
 
 ### Open Items
 - [ ] Fix GitHub 401 (check app scopes, not code)
 - [ ] Logout endpoint with token revocation
 - [ ] Tests with respx mocking
 - [ ] Debug logging for auth middleware
+
+### Constraints/Decisions
+- authlib over requests-oauthlib (async support)
+- Provider tokens encrypted via cryptography.fernet
+- OAuth is additive — JWT login stays
 
 What should I continue with?
 ```

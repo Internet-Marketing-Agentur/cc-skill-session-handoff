@@ -36,11 +36,17 @@ Say any of these:
 
 > "resume" · "load" · "weitermachen" · "fortsetzen" · "pick up" · "where did we leave off" · "last session"
 
-Claude reads the handoff file, shows a summary, and asks what to work on next. The handoff file is then archived to prevent duplicate resume offers.
+Claude reads the handoff file, shows a full summary (including project context, timeline, discoveries), and asks what to work on next. The handoff file is then archived to prevent duplicate resume offers.
+
+### View session history
+
+> `/session history` · "session history" · "past sessions"
+
+Shows a timeline of all archived sessions with date, goal, and status. Useful for recalling what happened across multiple sessions.
 
 ### Proactive behavior
 
-- **At session start:** If a handoff file exists, Claude automatically offers to resume
+- **At session start:** If a handoff file exists, Claude offers to resume — with a staleness hint if the handoff is more than a week old
 - **During long sessions:** Claude suggests saving before context gets lost
 
 ## How it works
@@ -57,6 +63,8 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 | **Current State** | Exact point to resume from |
 | **Open Items** | Checklist of next actions |
 | **Constraints/Decisions** | Decisions and why they were made |
+
+The save process is git-aware — it runs `git diff --stat` and `git status` to capture file changes that weren't explicitly discussed in conversation.
 
 The file is sized adaptively — ~250 tokens for a quick bug fix, up to ~1500 for complex multi-system work. The skill errs toward completeness: a longer handoff that captures everything is more valuable than a short one that forces the next session to rediscover context.
 
