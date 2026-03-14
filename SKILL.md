@@ -1,78 +1,64 @@
 ---
 name: session
 description: >
-  Session continuity with file-based handoff. Two modes: save and resume.
-  SAVE: Use when (1) approaching context limits, (2) user says "handoff", "save", "save session",
-  "continue later", or similar, (3) before closing a session with unfinished work.
-  Writes memory/HANDOFF.md + copies to clipboard.
-  RESUME: Use when (1) user says "resume", "hand-on", "weitermachen", "load",
-  (2) PROACTIVELY at conversation start if memory/HANDOFF.md exists — offer to resume.
-  PROACTIVE: (1) If memory/HANDOFF.md exists at session start, immediately offer resume.
-  (2) When context window is getting large, suggest save before information is lost.
+  Session continuity with file-based handoff — saves and restores context across Claude Code sessions.
+  Use this skill whenever the user wants to save, store, persist, or hand off their current session state,
+  or when they want to resume, continue, restore, or pick up where they left off.
+  Trigger words: "handoff", "save session", "speichern", "save", "continue later", "resume",
+  "weitermachen", "load", "fortsetzen", "pick up", "where did we leave off", "last session".
+  Also trigger PROACTIVELY: (1) at session start if memory/HANDOFF.md exists — offer to resume,
+  (2) when context window is getting large — suggest saving before information is lost.
+  Even if the user doesn't explicitly mention "session" or "handoff", trigger this skill whenever
+  they clearly want to preserve work for later or restore previous work.
 ---
 
 # Session Handoff
 
-File-based session continuity with save and resume modes.
+Preserve session context across conversation boundaries so the next session can pick up exactly where this one left off.
+
+The core idea: a session produces knowledge that's expensive to rebuild — file paths discovered, decisions made, bugs diagnosed, approaches tried and rejected. HANDOFF.md captures this perishable context in a compact format that lets the next session skip the rediscovery phase entirely.
 
 ## Mode Detection
 
 Determine mode from user input:
-- **save**: User says "handoff", "save", "speichern", "session-handoff save", or context is running low
-- **resume**: User says "resume", "hand-on", "weitermachen", "load", "fortsetzen", "session-handoff resume"
-- **auto-detect**: If HANDOFF.md exists in memory directory and no explicit mode given, offer resume
+- **save**: "handoff", "save", "speichern", "continue later", "save session", or context is running low
+- **resume**: "resume", "load", "weitermachen", "fortsetzen", "pick up", "where did we leave off", "last session"
+- **auto-detect**: If `{memory_directory}/HANDOFF.md` exists and no explicit mode given, offer resume
 
-If mode is ambiguous, ask the user.
+If ambiguous, ask the user.
 
 ---
 
 ## Mode: SAVE
 
-### Step 1: Analyze Current Session
+### Step 1: Analyze the Session
 
-Identify and categorize:
+Review the conversation and identify what would be most expensive for a fresh session to rediscover:
 
-- **Goal state**: What is the user trying to accomplish? What's the end state?
-- **Current progress**: What's been done? What's working?
-- **Blockers/open questions**: What's unresolved? What decisions are pending?
-- **Key artifacts**: Files modified, commands run, errors encountered
-- **Critical context**: Domain knowledge, constraints, or preferences established
+- **Goal**: What's the user trying to accomplish?
+- **Progress**: What's done and working?
+- **Current state**: The exact point to resume from — what was just tried, what's next
+- **Key artifacts**: Files modified, important paths, commands that worked
+- **Blockers**: Unresolved issues, pending decisions
+- **Context**: Domain knowledge, constraints, or preferences established during this session
 
-### Step 2: Apply Token Efficiency Heuristics
+### Step 2: Compress Intelligently
 
-**Include:**
-- Specific file paths, function names, error messages (hard to rediscover)
-- Decisions made and their rationale (prevents re-discussion)
-- Current hypothesis or approach being tested
-- Exact reproduction steps for bugs
-- IDs, URLs, credentials references (not values) that are needed to continue
+The goal is information density. A fresh Claude session already knows general programming concepts, standard library APIs, and common patterns — don't repeat those. Focus on what's unique to *this* session:
 
-**Exclude:**
-- General knowledge Claude already has
-- Verbose explanations of standard concepts
-- Full file contents (use paths + line numbers instead)
-- Conversation pleasantries or meta-discussion
+**High value** (include): specific file paths, function names, error messages, decisions with rationale, current hypothesis, reproduction steps, relevant IDs/URLs
 
-**Compress:**
-- Use bullet points over prose
-- Reference files by path, not content
-- Summarize long error traces to key lines
-- Use "established: X" for agreed-upon decisions
+**Low value** (omit): general knowledge, verbose explanations of standard concepts, full file contents (use path + line numbers), conversation meta-discussion
 
-### Step 3: Adaptive Sizing
+**Format**: bullet points over prose, paths over content, key error lines over full traces, "established: X" for agreed-upon decisions
 
-**Simple tasks** (bug fix, small feature): 100-200 tokens
-- Goal, current file, error/behavior, next step
+### Step 3: Size to Complexity
 
-**Medium tasks** (feature implementation, refactor): 200-400 tokens
-- Goal, progress list, current state, key files, next steps
-
-**Complex tasks** (architecture, multi-system): 400-800 tokens
-- Full structure, plus constraints and decision rationale
+Match handoff length to task complexity — a simple bug fix needs 100-200 tokens, a feature implementation 200-400, a multi-system architecture change 400-800. Don't pad simple tasks or truncate complex ones.
 
 ### Step 4: Write HANDOFF.md
 
-Write the handoff to `{memory_directory}/HANDOFF.md` using this structure:
+Write to `{memory_directory}/HANDOFF.md`:
 
 ```markdown
 <!-- Session Handoff — {YYYY-MM-DD HH:MM} -->
@@ -82,10 +68,9 @@ Write the handoff to `{memory_directory}/HANDOFF.md` using this structure:
 
 ## Progress
 - [Completed item with outcome]
-- [Completed item with outcome]
 
 ## Current State
-[What's happening right now - the exact point to resume from]
+[Exact resume point — what was just done, what's next]
 
 ## Key Files
 - `path/to/file.ext` - [role/status]
@@ -95,99 +80,93 @@ Write the handoff to `{memory_directory}/HANDOFF.md` using this structure:
 - [ ] [Subsequent action]
 
 ## Constraints/Decisions
-- [Established constraint or decision]
+- [Decision and why it was made]
 ```
 
-### Step 5: Copy to Clipboard and Display
+### Step 5: Confirm to User
 
-**Always do all three:**
+After writing the file:
 
-1. **Write the file** to `{memory_directory}/HANDOFF.md`
-2. **Display the full prompt** in a fenced code block so the user can see it
-3. **Copy to clipboard** using `pbcopy`:
-
-```bash
-cat "{memory_directory}/HANDOFF.md" | pbcopy
-```
-
-Confirm with: "Session gespeichert in `memory/HANDOFF.md` und in die Zwischenablage kopiert."
+1. **Display** the handoff content in a fenced code block
+2. **Copy to clipboard** (detect platform):
+   ```bash
+   # macOS
+   cat "{memory_directory}/HANDOFF.md" | pbcopy
+   # Linux (X11)
+   cat "{memory_directory}/HANDOFF.md" | xclip -selection clipboard
+   # Linux (Wayland)
+   cat "{memory_directory}/HANDOFF.md" | wl-copy
+   ```
+   If clipboard tools aren't available, skip silently — the file is saved either way.
+3. **Confirm** in the user's language, e.g.: "Session saved to `memory/HANDOFF.md` and copied to clipboard."
 
 ---
 
 ## Mode: RESUME
 
-### Step 1: Read Handoff Data
+### Step 1: Load Context
 
 1. Read `{memory_directory}/HANDOFF.md`
-2. Read `{memory_directory}/MEMORY.md` for additional project context
-3. If HANDOFF.md does not exist, inform the user: "Keine Handoff-Datei gefunden. Starte eine frische Session."
+2. Read `{memory_directory}/MEMORY.md` for background project context (if it exists)
+3. If no HANDOFF.md exists, tell the user and start fresh
 
-### Step 2: Display Summary
+MEMORY.md provides stable project knowledge (managed by auto-memory). HANDOFF.md provides the specific resume point. Use both together — MEMORY.md for "what is this project" and HANDOFF.md for "where exactly did we stop."
 
-Present a concise summary to the user:
+### Step 2: Show Summary
+
+Present a concise overview in the user's language:
 
 ```
-## Letzte Session
+## Last Session
 
-**Ziel:** [Context from handoff]
-**Stand:** [Current state]
+**Goal:** [from Context section]
+**Status:** [from Current State section]
 
-### Erledigt
+### Completed
 - [Progress items]
 
-### Offene Punkte
-- [ ] [Open item 1]
-- [ ] [Open item 2]
+### Open Items
+- [ ] [Remaining tasks]
 
-### Relevante Dateien
+### Key Files
 - `path` - [role]
 ```
 
-### Step 3: Ask What To Do
+### Step 3: Ask What To Continue With
 
-Ask the user: "Womit soll ich weitermachen?"
+Ask the user what they'd like to work on. If there are distinct open items, use AskUserQuestion to let them pick. Otherwise ask as free text.
 
-Use AskUserQuestion if there are distinct open items to choose from. Otherwise, ask as free text.
+### Step 4: Archive
 
-### Step 4: Archive Handoff
-
-After successfully loading the handoff, archive the file:
+Rename the handoff file so it doesn't trigger resume offers in future sessions:
 
 ```bash
 mv "{memory_directory}/HANDOFF.md" "{memory_directory}/HANDOFF-{YYYY-MM-DD}.md"
 ```
-
-This prevents the same handoff from being offered again at the next session start.
 
 ---
 
 ## Proactive Behavior
 
 ### At Session Start
-If `{memory_directory}/HANDOFF.md` exists, proactively inform the user:
+If `{memory_directory}/HANDOFF.md` exists, offer to resume. This is the single most valuable thing this skill does — it bridges the gap between sessions without requiring the user to remember what they were doing.
 
-> "Ich habe eine Handoff-Datei von der letzten Session gefunden. Soll ich dort weitermachen wo wir aufgehört haben?"
-
-If user confirms, execute RESUME mode. If user declines, continue normally.
-
-### When Context Gets Large
-When the conversation has been going on for a while and significant work has been done, suggest:
-
-> "Die Session ist schon recht umfangreich. Soll ich einen Handoff speichern, bevor Kontext verloren geht?"
+### During Long Sessions
+When significant work has accumulated and the conversation is getting long, suggest saving a handoff. Context loss from a session ending without a save is the problem this skill exists to solve.
 
 ---
 
-## Important Rules
+## Boundaries
 
-- **MEMORY.md is read-only** for this skill. Never modify MEMORY.md — it is managed separately by the auto-memory system.
-- **HANDOFF.md is ephemeral** — it represents a single session transition, not persistent knowledge.
-- Stable, long-term learnings belong in MEMORY.md (managed outside this skill). Session-specific state belongs in HANDOFF.md.
-- Always use the project's auto-memory directory path for file operations.
-- If both MEMORY.md and HANDOFF.md exist during resume, use MEMORY.md for background context and HANDOFF.md for the specific resume point.
+- **MEMORY.md is read-only.** It's managed by the auto-memory system and contains stable project knowledge. This skill reads it but never writes to it.
+- **HANDOFF.md is ephemeral.** It represents a single session transition. Long-term learnings belong in MEMORY.md (managed separately), not here.
+- Use the project's auto-memory directory path for all file operations.
 
 ---
 
-## Example: Save
+## Example
+
+**Save output** (`HANDOFF.md`):
 
 ```markdown
 <!-- Session Handoff — 2026-02-26 15:30 -->
@@ -221,24 +200,24 @@ likely a scope issue with the GitHub app configuration.
 - Storing provider tokens encrypted, not plain text
 ```
 
-## Example: Resume Output
+**Resume output** (shown to user):
 
 ```
-## Letzte Session
+## Last Session
 
-**Ziel:** Adding OAuth2 login flow (Google + GitHub) to FastAPI backend
-**Stand:** Google flow complete, GitHub callback returns 401
+**Goal:** Adding OAuth2 login flow (Google + GitHub) to FastAPI backend
+**Status:** Google flow complete, GitHub callback returns 401
 
-### Erledigt
+### Completed
 - Google OAuth2 working (login, callback, token exchange)
 - User model extended with provider fields
 - Alembic migration created and applied
 - Frontend redirect working
 
-### Offene Punkte
+### Open Items
 - [ ] Debug GitHub callback 401 (check scopes)
 - [ ] Add logout endpoint that revokes OAuth tokens
 - [ ] Write tests for both OAuth flows
 
-Womit soll ich weitermachen?
+What should I continue with?
 ```

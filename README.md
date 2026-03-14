@@ -4,10 +4,9 @@ File-based session continuity for [Claude Code](https://docs.anthropic.com/en/do
 
 ## Why?
 
-Claude Code conversations lose context when they end. Long sessions hit context limits and silently drop earlier details. This skill solves both problems:
+Every Claude Code session builds up valuable context — file paths discovered, decisions made, bugs diagnosed, approaches tried. When the session ends, all of that is lost. The next session starts from zero and has to rediscover everything.
 
-- **Save** captures your goal, progress, open items, and key files into a compact handoff file
-- **Resume** restores that context in a new session so you can pick up without re-explaining everything
+This skill solves that by capturing session state into a compact handoff file that lets the next session skip the rediscovery phase entirely.
 
 ## Install
 
@@ -21,17 +20,17 @@ claude skill install gh:Internet-Marketing-Agentur/cc-skill-session-handoff
 
 Say any of these to Claude Code:
 
-> "save session" · "handoff" · "speichern" · "continue later"
+> "save session" · "handoff" · "speichern" · "continue later" · "save"
 
-Claude analyzes the conversation and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard.
+Claude analyzes the conversation, extracts hard-to-rediscover context, and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard (macOS, Linux X11, and Wayland supported).
 
 ### Resume a session
 
 Say any of these:
 
-> "resume" · "load" · "weitermachen" · "fortsetzen"
+> "resume" · "load" · "weitermachen" · "fortsetzen" · "pick up" · "where did we leave off" · "last session"
 
-Claude reads the handoff file, presents a summary, and asks what to work on next.
+Claude reads the handoff file, shows a summary, and asks what to work on next. The handoff file is then archived to prevent duplicate resume offers.
 
 ### Proactive behavior
 
@@ -49,9 +48,11 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 | **Current State** | Exact point to resume from |
 | **Key Files** | Paths and their roles |
 | **Open Items** | Checklist of next actions |
-| **Constraints/Decisions** | Established decisions and rationale |
+| **Constraints/Decisions** | Decisions and why they were made |
 
-The file is sized adaptively — ~100 tokens for a quick bug fix, up to ~800 for complex multi-system work. General knowledge Claude already has is excluded; only hard-to-rediscover specifics (file paths, error messages, decisions) are kept.
+The file is sized adaptively — ~100 tokens for a quick bug fix, up to ~800 for complex multi-system work. Only hard-to-rediscover specifics are kept (file paths, error messages, decisions with rationale). General knowledge Claude already has is excluded.
+
+The skill responds in the user's language — it adapts automatically to English, German, or whatever language the conversation is in.
 
 ## Example
 
@@ -94,7 +95,7 @@ After resuming, Claude presents a summary and asks where to continue.
 ## File structure
 
 ```
-session/
+cc-skill-session-handoff/
 ├── SKILL.md          # Skill definition (loaded by Claude Code)
 ├── README.md
 └── LICENSE
