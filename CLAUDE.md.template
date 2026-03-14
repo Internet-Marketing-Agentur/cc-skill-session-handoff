@@ -4,7 +4,8 @@ Use this template to structure your project's `CLAUDE.md` for persistent knowled
 that should be available in every Claude Code session. Copy the sections you need
 into your project's `CLAUDE.md` and fill them in.
 
-The `/session save --learn` option can automatically suggest additions to these sections.
+The `/session save --learn` option can automatically suggest additions to these sections
+and to `DECISIONS.md`.
 
 ---
 
@@ -16,7 +17,6 @@ The `/session save --learn` option can automatically suggest additions to these 
 
 ## Architecture
 
-- [Key architectural decisions and why they were made]
 - [How components connect — e.g. "API → PostgreSQL, frontend → API via REST"]
 - [Patterns used — e.g. "repository pattern for DB access", "event-driven via Redis pub/sub"]
 
@@ -39,17 +39,16 @@ The `/session save --learn` option can automatically suggest additions to these 
 - [Things that look wrong but are intentional]
 - [Performance pitfalls or known limitations]
 
-## Key Decisions Log
+## Rules
 
-| Date | Decision | Rationale |
-|---|---|---|
-| YYYY-MM-DD | [What was decided] | [Why] |
+- When making a technical or architectural decision, log it to `DECISIONS.md` with date, decision, rationale, and alternatives considered. This happens automatically — no need to ask.
+- Read `DECISIONS.md` when you need context on why something was done a certain way.
 
 ---
 
 ### Tips
 
 - Keep entries concise — bullet points over prose
-- Date your entries so you know when decisions were made
 - Remove entries that are no longer true
-- This file is loaded into every session, so don't let it grow unbounded — aim for < 200 lines
+- This file is loaded into every session, so keep it under ~200 lines
+- Decisions go into `DECISIONS.md`, not here — keeps CLAUDE.md stable and lean

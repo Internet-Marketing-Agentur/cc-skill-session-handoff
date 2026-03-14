@@ -102,37 +102,46 @@ Write to `{memory_directory}/HANDOFF.md`:
 
 Keep a "Dead Ends" section when approaches were tried and abandoned — this prevents the next session from repeating them. Omit it if there were no dead ends.
 
-### Step 5: Extract learnings to CLAUDE.md (only with `--learn`)
+### Step 5: Extract learnings (only with `--learn`)
 
-If the user enabled learn, review the session for **stable project knowledge** — things that will be true next week, not just next session. Categorize them using the sections from `CLAUDE.md.template` (bundled with this skill):
+If the user enabled learn, review the session for **stable project knowledge** — things that will be true next week, not just next session. Route them to the right file:
 
-- **Project Overview / Architecture**: tech stack, component relationships, structural insights
+**→ DECISIONS.md** (appended automatically, no confirmation needed):
+- Technical or architectural decisions made during the session
+- Each entry with date, decision, rationale, and alternatives considered
+- Format per `DECISIONS.md.template` bundled with this skill
+- If no `DECISIONS.md` exists yet, create one from the template
+
+**→ CLAUDE.md** (only after user confirmation):
+- **Architecture**: component relationships, structural insights
 - **Conventions**: patterns, naming, workflow rules established
 - **Environment & Setup**: setup quirks, test prerequisites, required tooling
-- **Discoveries & Gotchas**: undocumented behavior, surprising dependencies, "looks wrong but is intentional"
-- **Key Decisions**: choices made with rationale and date
+- **Discoveries & Gotchas**: undocumented behavior, surprising dependencies
+- If no `CLAUDE.md` exists, suggest creating one from `CLAUDE.md.template`
 
-If the project has no CLAUDE.md yet, suggest creating one from the template. If one exists, suggest additions that fit the existing structure.
-
-Present suggestions grouped by section:
+Present the split clearly:
 
 ```
-These session insights could go into CLAUDE.md:
+Logged to DECISIONS.md:
+
+### 2026-02-26 — OAuth library choice
+**Decision:** authlib over requests-oauthlib
+**Rationale:** Better async support, less boilerplate
+**Alternatives considered:** requests-oauthlib (no native async)
+
+---
+
+These insights could go into CLAUDE.md:
 
 **Discoveries & Gotchas**
-- Auth middleware in `src/middleware/auth.py` swallows errors silently — returns 401 without logging
+- Auth middleware in `src/middleware/auth.py` swallows errors silently
 
 **Environment & Setup**
-- Alembic env.py needs async patch for this project (fix in `alembic/env.py:42-58`)
+- Alembic env.py needs async patch (fix in `alembic/env.py:42-58`)
 - Tests require `TEST_DATABASE_URL` env var
-
-**Key Decisions**
-- 2026-02-26: authlib over requests-oauthlib — better async support
 
 Should I add these to CLAUDE.md?
 ```
-
-Only append after user confirmation.
 
 ### Step 6: Confirm to User
 
@@ -251,7 +260,8 @@ When significant work has accumulated and the conversation is getting long, sugg
 
 - **MEMORY.md is read-only.** It's managed by the auto-memory system and contains stable project knowledge. This skill reads it but never writes to it.
 - **CLAUDE.md** may only be modified when `--learn` is enabled and the user confirms the suggested additions.
-- **HANDOFF.md is ephemeral.** It represents a single session transition — rich in detail, but not permanent. Stable learnings that should persist across all sessions belong in CLAUDE.md (via `--learn`) or MEMORY.md (managed separately).
+- **DECISIONS.md** is appended automatically when `--learn` is enabled — no confirmation needed for decisions, since the CLAUDE.md rule already authorizes this.
+- **HANDOFF.md is ephemeral.** It represents a single session transition. Stable knowledge belongs in CLAUDE.md, decisions in DECISIONS.md.
 - Use the project's auto-memory directory path for file operations.
 
 ---
@@ -291,23 +301,31 @@ Next step: check GitHub app settings, not code.
 - OAuth is additive — existing JWT login stays
 ```
 
-**`--learn` output** (suggested CLAUDE.md additions):
+**`--learn` output** (decisions logged, CLAUDE.md suggestions):
 
 ```
-These session insights could go into CLAUDE.md:
+Logged to DECISIONS.md:
 
-**Architecture**
-- OAuth is additive to existing JWT auth, not a replacement
+### 2026-02-26 — OAuth library choice
+**Decision:** authlib over requests-oauthlib
+**Rationale:** Better async support, less boilerplate
+**Alternatives considered:** requests-oauthlib (no native async)
+
+### 2026-02-26 — Token storage strategy
+**Decision:** Encrypt provider tokens via cryptography.fernet
+**Rationale:** Tokens are sensitive credentials, plain text unacceptable
+**Alternatives considered:** Plain text (rejected), vault integration (overkill for now)
+
+---
+
+These insights could go into CLAUDE.md:
+
+**Discoveries & Gotchas**
+- Auth middleware in `src/middleware/auth.py` swallows errors silently
 
 **Environment & Setup**
 - Alembic env.py needs async patch (fix in `alembic/env.py:42-58`)
 - Tests require `TEST_DATABASE_URL` env var
-
-**Discoveries & Gotchas**
-- Auth middleware in `src/middleware/auth.py` swallows errors silently — returns 401 without logging
-
-**Key Decisions**
-- 2026-02-26: authlib over requests-oauthlib (async support)
 
 Should I add these to CLAUDE.md?
 ```

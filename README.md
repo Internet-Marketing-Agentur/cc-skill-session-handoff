@@ -33,7 +33,12 @@ Claude reviews the entire conversation — not just the last few exchanges — a
 
 > "save session with learn" · `/session save --learn`
 
-When enabled, Claude also identifies stable project insights from the session (architecture decisions, conventions, environment quirks) and suggests appending them to `CLAUDE.md` — so they're available in every future session, not just the next one. Only writes to CLAUDE.md after your confirmation.
+When enabled, Claude extracts stable knowledge from the session and routes it to the right place:
+
+- **Decisions** → `DECISIONS.md` (appended automatically — date, decision, rationale, alternatives)
+- **Insights** → `CLAUDE.md` (architecture, conventions, gotchas — only after your confirmation)
+
+This keeps HANDOFF.md lean (session state only) while ensuring project knowledge isn't lost.
 
 ### Resume a session
 
@@ -67,7 +72,10 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 | **Dead Ends** | Approaches tried and abandoned (prevents repeating them) |
 | **Decisions** | Choices made and why |
 
-Project-level knowledge (architecture, conventions, discoveries) belongs in `CLAUDE.md` instead — use `--learn` to extract it automatically.
+Project-level knowledge belongs elsewhere — use `--learn` to extract it:
+
+- **Decisions** → `DECISIONS.md` (on-demand read, auto-maintained via CLAUDE.md rule)
+- **Architecture, conventions, gotchas** → `CLAUDE.md` (loaded every session)
 
 The save process is git-aware — it runs `git diff --stat` and `git status` to capture file changes that weren't explicitly discussed in conversation.
 
@@ -114,7 +122,8 @@ After resuming, Claude presents a summary and asks where to continue.
 ```
 session/
 ├── SKILL.md              # Skill definition (loaded by Claude Code)
-├── CLAUDE.md.template    # Template for structuring project knowledge
+├── CLAUDE.md.template    # Template for persistent project knowledge
+├── DECISIONS.md.template # Template for decision log (on-demand, auto-maintained)
 ├── README.md
 └── LICENSE
 ```
