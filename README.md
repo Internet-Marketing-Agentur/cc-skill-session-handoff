@@ -22,7 +22,13 @@ Say any of these to Claude Code:
 
 > "save session" · "handoff" · "speichern" · "continue later" · "save"
 
-Claude analyzes the conversation, extracts hard-to-rediscover context, and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard (macOS, Linux X11, and Wayland supported).
+Claude reviews the entire conversation — not just the last few exchanges — and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard (macOS, Linux X11, and Wayland supported).
+
+#### `--learn` option
+
+> "save session with learn" · `/session save --learn`
+
+When enabled, Claude also identifies stable project insights from the session (architecture decisions, conventions, environment quirks) and suggests appending them to `CLAUDE.md` — so they're available in every future session, not just the next one. Only writes to CLAUDE.md after your confirmation.
 
 ### Resume a session
 
@@ -43,14 +49,16 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 
 | Section | Purpose |
 |---|---|
-| **Context** | 1–2 sentence goal statement |
-| **Progress** | Completed items with outcomes |
-| **Current State** | Exact point to resume from |
+| **Context** | Goal + project background relevant to this work |
+| **Project Context** | Tech stack, architecture, non-obvious quirks learned |
+| **Session Timeline** | Chronological history including dead ends |
+| **Discoveries** | Surprising findings, undocumented behavior, gotchas |
 | **Key Files** | Paths and their roles |
+| **Current State** | Exact point to resume from |
 | **Open Items** | Checklist of next actions |
 | **Constraints/Decisions** | Decisions and why they were made |
 
-The file is sized adaptively — ~100 tokens for a quick bug fix, up to ~800 for complex multi-system work. Only hard-to-rediscover specifics are kept (file paths, error messages, decisions with rationale). General knowledge Claude already has is excluded.
+The file is sized adaptively — ~250 tokens for a quick bug fix, up to ~1500 for complex multi-system work. The skill errs toward completeness: a longer handoff that captures everything is more valuable than a short one that forces the next session to rediscover context.
 
 The skill responds in the user's language — it adapts automatically to English, German, or whatever language the conversation is in.
 

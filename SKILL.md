@@ -18,6 +18,10 @@ Preserve session context across conversation boundaries so the next session can 
 
 The core idea: a session produces knowledge that's expensive to rebuild — file paths discovered, decisions made, bugs diagnosed, approaches tried and rejected. HANDOFF.md captures this perishable context in a compact format that lets the next session skip the rediscovery phase entirely.
 
+## Parameters
+
+- **learn** (default: off): When enabled, the save process also identifies discoveries and decisions that belong in CLAUDE.md rather than HANDOFF.md, and suggests appending them. Usage: `/session save --learn` or "save session with learn"
+
 ## Mode Detection
 
 Determine mode from user input:
@@ -33,28 +37,38 @@ If ambiguous, ask the user.
 
 ### Step 1: Analyze the Session
 
-Review the conversation and identify what would be most expensive for a fresh session to rediscover:
+Review the entire conversation — not just the last few exchanges. Identify what would be most expensive for a fresh session to rediscover:
 
-- **Goal**: What's the user trying to accomplish?
-- **Progress**: What's done and working?
+- **Goal**: What's the user trying to accomplish? What's the bigger picture?
+- **Project context**: What did we learn about the project structure, tech stack, architecture, quirks? Things that aren't obvious from the code alone.
+- **Session timeline**: What happened in what order? Include approaches that were tried and abandoned — a fresh session shouldn't repeat dead ends.
+- **Discoveries**: Surprising findings, undocumented behavior, gotchas ("the API uses GraphQL internally despite REST docs", "tests require Docker running")
 - **Current state**: The exact point to resume from — what was just tried, what's next
 - **Key artifacts**: Files modified, important paths, commands that worked
 - **Blockers**: Unresolved issues, pending decisions
-- **Context**: Domain knowledge, constraints, or preferences established during this session
+- **Decisions**: Choices made during the session and why
 
 ### Step 2: Compress Intelligently
 
-The goal is information density. A fresh Claude session already knows general programming concepts, standard library APIs, and common patterns — don't repeat those. Focus on what's unique to *this* session:
+The goal is information density — but err on the side of including too much rather than too little. A handoff that's too brief forces the next session to rediscover context, which is the exact problem this skill exists to solve.
 
-**High value** (include): specific file paths, function names, error messages, decisions with rationale, current hypothesis, reproduction steps, relevant IDs/URLs
+A fresh Claude session already knows general programming concepts, standard library APIs, and common patterns — don't repeat those. Focus on what's unique to *this project* and *this session*:
 
-**Low value** (omit): general knowledge, verbose explanations of standard concepts, full file contents (use path + line numbers), conversation meta-discussion
+**High value** (include): project-specific architecture, file paths, function names, error messages, decisions with rationale, dead ends and why they failed, current hypothesis, reproduction steps, relevant IDs/URLs, discovered quirks
 
-**Format**: bullet points over prose, paths over content, key error lines over full traces, "established: X" for agreed-upon decisions
+**Low value** (omit): general programming knowledge, verbose explanations of standard concepts, full file contents (use path + line numbers), conversation meta-discussion
+
+**Format**: bullet points over prose, paths over content, key error lines over full traces
 
 ### Step 3: Size to Complexity
 
-Match handoff length to task complexity — a simple bug fix needs 100-200 tokens, a feature implementation 200-400, a multi-system architecture change 400-800. Don't pad simple tasks or truncate complex ones.
+Err toward completeness. Target token ranges:
+
+- **Simple tasks** (single bug fix, small change): 250-400 tokens
+- **Medium tasks** (feature implementation, refactor): 400-800 tokens
+- **Complex tasks** (architecture, multi-system, exploration): 800-1500 tokens
+
+If in doubt, go longer. A 1200-token handoff that captures everything is far more valuable than a 300-token one that forces rediscovery.
 
 ### Step 4: Write HANDOFF.md
 
@@ -64,16 +78,27 @@ Write to `{memory_directory}/HANDOFF.md`:
 <!-- Session Handoff — {YYYY-MM-DD HH:MM} -->
 
 ## Context
-[1-2 sentence goal statement]
+[2-3 sentence goal + project background relevant to this work]
 
-## Progress
-- [Completed item with outcome]
+## Project Context
+- [Tech stack, architecture, or structural insight learned during session]
+- [Non-obvious project quirk or convention discovered]
 
-## Current State
-[Exact resume point — what was just done, what's next]
+## Session Timeline
+1. [First thing done/tried — with outcome]
+2. [Next step — with outcome]
+3. [Dead end tried and why it was abandoned]
+4. [Current approach and where it stands]
+
+## Discoveries
+- [Surprising finding about the project]
+- [Undocumented behavior or gotcha]
 
 ## Key Files
 - `path/to/file.ext` - [role/status]
+
+## Current State
+[Exact resume point — what was just done, what's next]
 
 ## Open Items
 - [ ] [Next immediate action]
@@ -83,7 +108,32 @@ Write to `{memory_directory}/HANDOFF.md`:
 - [Decision and why it was made]
 ```
 
-### Step 5: Confirm to User
+Sections with no content can be omitted. But don't omit a section just to save tokens — only if there's genuinely nothing to say.
+
+### Step 5: Triage to CLAUDE.md (only with `--learn`)
+
+If the user enabled learn, review the session for insights that are **stable project knowledge** — things that will be true next week, not just next session:
+
+- Architecture decisions and rationale
+- Project conventions and patterns
+- Environment setup quirks
+- Non-obvious dependencies or requirements
+- "Always do X because Y" learnings
+
+Present these as a suggested addition to CLAUDE.md:
+
+```
+I found these insights that might belong in CLAUDE.md (persistent project knowledge):
+
+- [Insight 1]
+- [Insight 2]
+
+Should I append these to CLAUDE.md?
+```
+
+Only append after user confirmation. Format as concise bullet points that fit the existing CLAUDE.md style.
+
+### Step 6: Confirm to User
 
 After writing the file:
 
@@ -159,8 +209,9 @@ When significant work has accumulated and the conversation is getting long, sugg
 ## Boundaries
 
 - **MEMORY.md is read-only.** It's managed by the auto-memory system and contains stable project knowledge. This skill reads it but never writes to it.
-- **HANDOFF.md is ephemeral.** It represents a single session transition. Long-term learnings belong in MEMORY.md (managed separately), not here.
-- Use the project's auto-memory directory path for all file operations.
+- **CLAUDE.md** may only be modified when `--learn` is enabled and the user confirms the suggested additions.
+- **HANDOFF.md is ephemeral.** It represents a single session transition — rich in detail, but not permanent. Stable learnings that should persist across all sessions belong in CLAUDE.md (via `--learn`) or MEMORY.md (managed separately).
+- Use the project's auto-memory directory path for file operations.
 
 ---
 
@@ -172,32 +223,48 @@ When significant work has accumulated and the conversation is getting long, sugg
 <!-- Session Handoff — 2026-02-26 15:30 -->
 
 ## Context
-Adding OAuth2 login flow to the FastAPI backend with Google and GitHub providers.
+Adding OAuth2 login flow to the FastAPI backend (Google + GitHub providers).
+The app is a SaaS dashboard with existing JWT auth — OAuth is an additional login method, not a replacement.
 
-## Progress
-- Google OAuth2 working (login, callback, token exchange)
-- User model extended with `provider` and `provider_id` fields
-- Alembic migration created and applied
-- Frontend redirect to /auth/google/login working
+## Project Context
+- FastAPI backend in `src/`, Alembic for migrations, PostgreSQL
+- Auth middleware in `src/middleware/auth.py` — checks JWT on every request
+- Frontend is React (Vite) in `frontend/`, uses `react-router` v6
+- Tests use `pytest` + `httpx.AsyncClient`, need `TEST_DATABASE_URL` env var
 
-## Current State
-Google flow complete. GitHub OAuth2 started — callback endpoint returns 401,
-likely a scope issue with the GitHub app configuration.
+## Session Timeline
+1. Evaluated authlib vs requests-oauthlib — chose authlib (better async, less boilerplate)
+2. Added Google OAuth: routes, callback, token exchange — working end to end
+3. Extended User model with `provider` + `provider_id` fields, wrote Alembic migration
+4. Tried adding GitHub OAuth using same pattern as Google
+5. GitHub callback returns 401 — debugged for ~20 min, likely a scope issue in the GitHub app config (not a code problem)
+
+## Discoveries
+- `src/middleware/auth.py` silently swallows auth errors and returns 401 without logging — made debugging GitHub OAuth harder. Consider adding debug logging.
+- Alembic `env.py` was configured for sync only — had to patch it for async. Fix is in `alembic/env.py:42-58`.
 
 ## Key Files
-- `src/auth/oauth.py` - OAuth route handlers
+- `src/auth/oauth.py` - OAuth route handlers (Google working, GitHub WIP)
 - `src/models/user.py` - User model with provider fields
 - `alembic/versions/a3f8...py` - Migration for provider columns
 - `.env.example` - Updated with GITHUB_CLIENT_ID/SECRET placeholders
+- `src/middleware/auth.py` - Auth middleware (no changes, but relevant for debugging)
+
+## Current State
+Google OAuth complete and tested manually. GitHub OAuth callback returns 401 —
+most likely the GitHub OAuth App needs `read:user` scope added (currently only has `user:email`).
+Next step: check GitHub app settings, not code.
 
 ## Open Items
-- [ ] Debug GitHub callback 401 (check scopes in GitHub app settings)
-- [ ] Add logout endpoint that revokes OAuth tokens
-- [ ] Write tests for both OAuth flows
+- [ ] Fix GitHub callback 401 — check scopes in GitHub app settings (Settings > Developer > OAuth Apps)
+- [ ] Add logout endpoint that revokes OAuth tokens (authlib has `revoke_token()`)
+- [ ] Write tests for both OAuth flows (mock external OAuth with `respx`)
+- [ ] Consider adding debug logging to auth middleware
 
 ## Constraints/Decisions
-- Using authlib over requests-oauthlib (better async support)
-- Storing provider tokens encrypted, not plain text
+- Using authlib over requests-oauthlib — better async support, less boilerplate
+- Storing provider tokens encrypted via `cryptography.fernet`, key in env var
+- OAuth is additive — existing JWT login stays, users can link OAuth later
 ```
 
 **Resume output** (shown to user):
@@ -205,19 +272,24 @@ likely a scope issue with the GitHub app configuration.
 ```
 ## Last Session
 
-**Goal:** Adding OAuth2 login flow (Google + GitHub) to FastAPI backend
-**Status:** Google flow complete, GitHub callback returns 401
+**Goal:** OAuth2 login (Google + GitHub) for FastAPI SaaS backend
+**Status:** Google complete, GitHub callback 401 (likely scope config issue)
 
-### Completed
-- Google OAuth2 working (login, callback, token exchange)
-- User model extended with provider fields
-- Alembic migration created and applied
-- Frontend redirect working
+### Session Timeline
+1. Chose authlib for OAuth (async support)
+2. Google OAuth — working end to end
+3. User model + migration for provider fields
+4. GitHub OAuth — callback returns 401, likely scope issue
+
+### Discoveries
+- Auth middleware swallows errors silently — makes debugging hard
+- Alembic env.py needed async patch
 
 ### Open Items
-- [ ] Debug GitHub callback 401 (check scopes)
-- [ ] Add logout endpoint that revokes OAuth tokens
-- [ ] Write tests for both OAuth flows
+- [ ] Fix GitHub 401 (check app scopes, not code)
+- [ ] Logout endpoint with token revocation
+- [ ] Tests with respx mocking
+- [ ] Debug logging for auth middleware
 
 What should I continue with?
 ```
