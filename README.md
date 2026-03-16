@@ -4,10 +4,14 @@ File-based session continuity for [Claude Code](https://docs.anthropic.com/en/do
 
 ## Why?
 
-Claude Code conversations lose context when they end. Long sessions hit context limits and silently drop earlier details. This skill solves both problems:
+Every Claude Code session builds up valuable context — file paths discovered, decisions made, bugs diagnosed, approaches tried. When the session ends, all of that is lost. The next session starts from zero and has to rediscover everything.
 
-- **Save** captures your goal, progress, open items, and key files into a compact handoff file
-- **Resume** restores that context in a new session so you can pick up without re-explaining everything
+This skill solves that by separating two kinds of knowledge:
+
+- **Session state** (HANDOFF.md) — ephemeral: current task, open items, key files, dead ends. Consumed by the next session, then archived.
+- **Project knowledge** (CLAUDE.md) — persistent: architecture, conventions, discoveries, gotchas. Available in every session automatically.
+
+The `--learn` option bridges the two by extracting stable insights from a session into CLAUDE.md. A `CLAUDE.md.template` is included to help structure your project knowledge.
 
 ## Install
 
@@ -21,21 +25,38 @@ claude skill install gh:Internet-Marketing-Agentur/cc-skill-session-handoff
 
 Say any of these to Claude Code:
 
-> "save session" · "handoff" · "speichern" · "continue later"
+> "save session" · "handoff" · "speichern" · "continue later" · "save"
 
-Claude analyzes the conversation and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard.
+Claude reviews the entire conversation — not just the last few exchanges — and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard (macOS, Linux X11, and Wayland supported).
+
+#### `--learn` option
+
+> "save session with learn" · `/session save --learn`
+
+When enabled, Claude extracts stable knowledge from the session and routes it to the right place:
+
+- **Decisions** → `DECISIONS.md` (appended automatically — date, decision, rationale, alternatives)
+- **Insights** → `CLAUDE.md` (architecture, conventions, gotchas — only after your confirmation)
+
+This keeps HANDOFF.md lean (session state only) while ensuring project knowledge isn't lost.
 
 ### Resume a session
 
 Say any of these:
 
-> "resume" · "load" · "weitermachen" · "fortsetzen"
+> "resume" · "load" · "weitermachen" · "fortsetzen" · "pick up" · "where did we leave off" · "last session"
 
-Claude reads the handoff file, presents a summary, and asks what to work on next.
+Claude reads the handoff file, shows a summary, and asks what to work on next. The handoff file is then archived to prevent duplicate resume offers.
+
+### View session history
+
+> `/session history` · "session history" · "past sessions"
+
+Shows a timeline of all archived sessions with date, goal, and status. Useful for recalling what happened across multiple sessions.
 
 ### Proactive behavior
 
-- **At session start:** If a handoff file exists, Claude automatically offers to resume
+- **At session start:** If a handoff file exists, Claude offers to resume — with a staleness hint if the handoff is more than a week old
 - **During long sessions:** Claude suggests saving before context gets lost
 
 ## How it works
@@ -44,14 +65,23 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 
 | Section | Purpose |
 |---|---|
-| **Context** | 1–2 sentence goal statement |
-| **Progress** | Completed items with outcomes |
+| **Context** | Goal statement |
 | **Current State** | Exact point to resume from |
-| **Key Files** | Paths and their roles |
+| **Key Files** | Paths and what changed |
 | **Open Items** | Checklist of next actions |
-| **Constraints/Decisions** | Established decisions and rationale |
+| **Dead Ends** | Approaches tried and abandoned (prevents repeating them) |
+| **Decisions** | Choices made and why |
 
-The file is sized adaptively — ~100 tokens for a quick bug fix, up to ~800 for complex multi-system work. General knowledge Claude already has is excluded; only hard-to-rediscover specifics (file paths, error messages, decisions) are kept.
+Project-level knowledge belongs elsewhere — use `--learn` to extract it:
+
+- **Decisions** → `DECISIONS.md` (on-demand read, auto-maintained via CLAUDE.md rule)
+- **Architecture, conventions, gotchas** → `CLAUDE.md` (loaded every session)
+
+The save process is git-aware — it runs `git diff --stat` and `git status` to capture file changes that weren't explicitly discussed in conversation.
+
+The file is sized adaptively — ~250 tokens for a quick bug fix, up to ~1500 for complex multi-system work. The skill errs toward completeness: a longer handoff that captures everything is more valuable than a short one that forces the next session to rediscover context.
+
+The skill responds in the user's language — it adapts automatically to English, German, or whatever language the conversation is in.
 
 ## Example
 
@@ -61,32 +91,28 @@ After saving:
 <!-- Session Handoff — 2026-02-26 15:30 -->
 
 ## Context
-Adding OAuth2 login flow to the FastAPI backend with Google and GitHub providers.
-
-## Progress
-- Google OAuth2 working (login, callback, token exchange)
-- User model extended with `provider` and `provider_id` fields
-- Alembic migration created and applied
-- Frontend redirect to /auth/google/login working
+Adding OAuth2 login flow (Google + GitHub) to FastAPI SaaS backend.
 
 ## Current State
-Google flow complete. GitHub OAuth2 started — callback endpoint returns 401,
-likely a scope issue with the GitHub app configuration.
+Google OAuth complete. GitHub callback returns 401 —
+likely scope issue in GitHub app config, not code.
 
 ## Key Files
-- `src/auth/oauth.py` - OAuth route handlers
+- `src/auth/oauth.py` - OAuth handlers (Google working, GitHub WIP)
 - `src/models/user.py` - User model with provider fields
 - `alembic/versions/a3f8...py` - Migration for provider columns
-- `.env.example` - Updated with GITHUB_CLIENT_ID/SECRET placeholders
 
 ## Open Items
-- [ ] Debug GitHub callback 401 (check scopes in GitHub app settings)
-- [ ] Add logout endpoint that revokes OAuth tokens
-- [ ] Write tests for both OAuth flows
+- [ ] Fix GitHub callback 401 — check scopes in GitHub app settings
+- [ ] Add logout endpoint (authlib has `revoke_token()`)
+- [ ] Write tests for both OAuth flows (mock with `respx`)
 
-## Constraints/Decisions
-- Using authlib over requests-oauthlib (better async support)
-- Storing provider tokens encrypted, not plain text
+## Dead Ends
+- Debugged GitHub 401 as code issue for ~20 min — it's a config issue
+
+## Decisions
+- authlib over requests-oauthlib (async support, less boilerplate)
+- Provider tokens encrypted via cryptography.fernet
 ```
 
 After resuming, Claude presents a summary and asks where to continue.
@@ -95,7 +121,9 @@ After resuming, Claude presents a summary and asks where to continue.
 
 ```
 session/
-├── SKILL.md          # Skill definition (loaded by Claude Code)
+├── SKILL.md              # Skill definition (loaded by Claude Code)
+├── CLAUDE.md.template    # Template for persistent project knowledge
+├── DECISIONS.md.template # Template for decision log (on-demand, auto-maintained)
 ├── README.md
 └── LICENSE
 ```

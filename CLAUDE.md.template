@@ -1,0 +1,54 @@
+# CLAUDE.md Template — Project Knowledge
+
+Use this template to structure your project's `CLAUDE.md` for persistent knowledge
+that should be available in every Claude Code session. Copy the sections you need
+into your project's `CLAUDE.md` and fill them in.
+
+The `/session save --learn` option can automatically suggest additions to these sections
+and to `DECISIONS.md`.
+
+---
+
+## Project Overview
+
+- **What**: [One sentence — what does this project do?]
+- **Stack**: [Languages, frameworks, databases, key dependencies]
+- **Repo structure**: [Brief layout, e.g. "src/ = backend, frontend/ = React app, infra/ = Terraform"]
+
+## Architecture
+
+- [How components connect — e.g. "API → PostgreSQL, frontend → API via REST"]
+- [Patterns used — e.g. "repository pattern for DB access", "event-driven via Redis pub/sub"]
+
+## Conventions
+
+- [Naming conventions, code style, commit message format]
+- [Branch strategy, PR process]
+- [File organization patterns]
+
+## Environment & Setup
+
+- [How to run locally — required env vars, Docker, etc.]
+- [Test commands and prerequisites]
+- [Non-obvious setup quirks — e.g. "needs Docker running for integration tests"]
+
+## Discoveries & Gotchas
+
+- [Undocumented behavior — e.g. "auth middleware swallows errors silently"]
+- [Surprising dependencies or coupling]
+- [Things that look wrong but are intentional]
+- [Performance pitfalls or known limitations]
+
+## Rules
+
+- When making a technical or architectural decision, log it to `DECISIONS.md` with date, decision, rationale, and alternatives considered. This happens automatically — no need to ask.
+- Read `DECISIONS.md` when you need context on why something was done a certain way.
+
+---
+
+### Tips
+
+- Keep entries concise — bullet points over prose
+- Remove entries that are no longer true
+- This file is loaded into every session, so keep it under ~200 lines
+- Decisions go into `DECISIONS.md`, not here — keeps CLAUDE.md stable and lean

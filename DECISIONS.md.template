@@ -1,0 +1,19 @@
+# Decisions
+
+Chronological log of technical and architectural decisions. Automatically maintained — read on demand.
+
+## Format
+
+Each entry follows this pattern:
+
+```
+### YYYY-MM-DD — [Short title]
+
+**Decision:** [What was decided]
+**Rationale:** [Why — the key reason]
+**Alternatives considered:** [What else was evaluated, and why it lost]
+```
+
+---
+
+<!-- Decisions are appended below this line -->
