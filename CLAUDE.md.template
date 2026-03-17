@@ -41,8 +41,24 @@ and to `DECISIONS.md`.
 
 ## Rules
 
-- When making a technical or architectural decision, log it to `DECISIONS.md` with date, decision, rationale, and alternatives considered. This happens automatically — no need to ask.
-- Read `DECISIONS.md` when you need context on why something was done a certain way.
+### Decision & Learning Trail (Auto-Capture)
+
+Log to `DECISIONS.md` **in real-time during the session** — not just at save time. This ensures nothing is lost even if the session ends unexpectedly.
+
+**Log immediately when any of these happen:**
+- A technical or architectural decision is made → use "Decision" format
+- Something surprising or undocumented is discovered → use "Learning" format
+- An approach is abandoned in favor of another → use "Course Correction" format
+
+**How to log:** Append to `DECISIONS.md` following the format templates in that file. Each entry gets a date, a short title, and structured details. Keep entries concise but complete enough to understand the reasoning months later.
+
+**When to read:** Consult `DECISIONS.md` before making decisions in areas where prior choices exist — this prevents contradicting or repeating past decisions.
+
+### General
+
+- Keep CLAUDE.md under ~200 lines — it's loaded every session
+- Decisions and learnings go into `DECISIONS.md`, not here
+- Remove entries from CLAUDE.md that are no longer true
 
 ---
 
@@ -50,5 +66,5 @@ and to `DECISIONS.md`.
 
 - Keep entries concise — bullet points over prose
 - Remove entries that are no longer true
-- This file is loaded into every session, so keep it under ~200 lines
 - Decisions go into `DECISIONS.md`, not here — keeps CLAUDE.md stable and lean
+- The decision trail in `DECISIONS.md` is your project's memory — treat it as valuable documentation

@@ -23,6 +23,26 @@ The core idea: a session produces two kinds of knowledge — **ephemeral state**
 
 - **learn** (default: off): When enabled, the save process also identifies discoveries and decisions that belong in CLAUDE.md rather than HANDOFF.md, and suggests appending them. Usage: `/session save --learn` or "save session with learn"
 
+## Continuous Decision Capture
+
+**This skill supports real-time decision logging — not just at save time.**
+
+When the CLAUDE.md template's "Decision & Learning Trail" rule is active in a project, Claude logs decisions, discoveries, and course corrections to `DECISIONS.md` as they happen during the session. This ensures:
+
+1. **Nothing is lost** — even if the session ends without a save
+2. **Context is fresh** — decisions are logged when the reasoning is still in working memory
+3. **Trail is traceable** — each entry has date, context, rationale, and alternatives
+
+Three types of entries are captured:
+
+| Type | When | Format |
+|---|---|---|
+| **Decision** | A choice is made between alternatives | Decision + Rationale + Alternatives + Context |
+| **Learning** | Something surprising is discovered | Discovery + Impact + Source |
+| **Course Correction** | An approach is abandoned | Changed from + Changed to + Why |
+
+The `--learn` flag at save time acts as a **safety net**: it reviews the session for any decisions that weren't captured in real-time and logs them retroactively.
+
 ## Mode Detection
 
 Determine mode from user input:
@@ -107,9 +127,9 @@ Keep a "Dead Ends" section when approaches were tried and abandoned — this pre
 If the user enabled learn, review the session for **stable project knowledge** — things that will be true next week, not just next session. Route them to the right file:
 
 **→ DECISIONS.md** (appended automatically, no confirmation needed):
-- Technical or architectural decisions made during the session
-- Each entry with date, decision, rationale, and alternatives considered
-- Format per `DECISIONS.md.template` bundled with this skill
+- Review the session for decisions, discoveries, and course corrections that weren't already logged in real-time
+- Use the three entry formats from `DECISIONS.md.template`: Decision, Learning, Course Correction
+- Check existing entries in `DECISIONS.md` to avoid duplicates — if continuous capture already logged a decision, skip it
 - If no `DECISIONS.md` exists yet, create one from the template
 
 **→ CLAUDE.md** (only after user confirmation):
@@ -304,17 +324,20 @@ Next step: check GitHub app settings, not code.
 **`--learn` output** (decisions logged, CLAUDE.md suggestions):
 
 ```
-Logged to DECISIONS.md:
-
-### 2026-02-26 — OAuth library choice
-**Decision:** authlib over requests-oauthlib
-**Rationale:** Better async support, less boilerplate
-**Alternatives considered:** requests-oauthlib (no native async)
+Logged to DECISIONS.md (2 new, 1 already captured):
 
 ### 2026-02-26 — Token storage strategy
 **Decision:** Encrypt provider tokens via cryptography.fernet
 **Rationale:** Tokens are sensitive credentials, plain text unacceptable
 **Alternatives considered:** Plain text (rejected), vault integration (overkill for now)
+**Context:** Needed to store OAuth provider tokens for refresh flows
+
+### 2026-02-26 — Auth middleware error handling
+**Discovery:** Auth middleware in `src/middleware/auth.py` swallows errors silently
+**Impact:** Failed auth returns 200 with no user — causes subtle bugs downstream
+**Source:** Discovered while debugging GitHub OAuth callback
+
+(Skipped: "OAuth library choice" — already logged during session)
 
 ---
 

@@ -1,10 +1,18 @@
-# Decisions
+# Decisions & Learnings
 
-Chronological log of technical and architectural decisions. Automatically maintained — read on demand.
+Chronological log of decisions, learnings, and insights. Automatically maintained — read on demand, append in real-time.
+
+This file serves as the project's **decision trail**: every choice, discovery, and course correction is logged here as it happens, not just at session end. This makes it possible to trace *why* something is the way it is, weeks or months later.
+
+## How this file is maintained
+
+- **Automatic**: Claude logs entries here during the session whenever a decision is made or something important is learned — no explicit command needed
+- **On save**: `/session save --learn` reviews the session for any decisions that weren't captured yet
+- **Manual**: You can always ask Claude to log something: "log this decision" / "merke dir das"
 
 ## Format
 
-Each entry follows this pattern:
+### Decisions
 
 ```
 ### YYYY-MM-DD — [Short title]
@@ -12,8 +20,29 @@ Each entry follows this pattern:
 **Decision:** [What was decided]
 **Rationale:** [Why — the key reason]
 **Alternatives considered:** [What else was evaluated, and why it lost]
+**Context:** [What triggered this decision — the problem or question]
+```
+
+### Learnings & Discoveries
+
+```
+### YYYY-MM-DD — [Short title]
+
+**Discovery:** [What was found out]
+**Impact:** [Why it matters — what it affects]
+**Source:** [How it was discovered — file, error, test, etc.]
+```
+
+### Course Corrections
+
+```
+### YYYY-MM-DD — [Short title]
+
+**Changed from:** [Previous approach]
+**Changed to:** [New approach]
+**Why:** [What went wrong or what new information emerged]
 ```
 
 ---
 
-<!-- Decisions are appended below this line -->
+<!-- Entries are appended below this line -->

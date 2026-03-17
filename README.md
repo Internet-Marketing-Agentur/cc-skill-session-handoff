@@ -40,6 +40,25 @@ When enabled, Claude extracts stable knowledge from the session and routes it to
 
 This keeps HANDOFF.md lean (session state only) while ensuring project knowledge isn't lost.
 
+### Continuous decision capture
+
+When your project's `CLAUDE.md` includes the "Decision & Learning Trail" rule (from the included template), Claude logs decisions, discoveries, and course corrections to `DECISIONS.md` **in real-time as they happen** — not just at save time.
+
+This means:
+- Decisions are captured when reasoning is fresh
+- Nothing is lost if the session ends unexpectedly
+- You get a traceable trail of *why* your project looks the way it does
+
+Three entry types are supported:
+
+| Type | Example |
+|---|---|
+| **Decision** | "authlib over requests-oauthlib — better async support" |
+| **Learning** | "Auth middleware swallows errors silently — causes subtle bugs" |
+| **Course Correction** | "Switched from REST to GraphQL — N+1 queries were unmanageable" |
+
+The `--learn` flag at save time acts as a safety net — it catches anything that wasn't logged in real-time.
+
 ### Resume a session
 
 Say any of these:
@@ -72,10 +91,10 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 | **Dead Ends** | Approaches tried and abandoned (prevents repeating them) |
 | **Decisions** | Choices made and why |
 
-Project-level knowledge belongs elsewhere — use `--learn` to extract it:
+Project-level knowledge belongs elsewhere:
 
-- **Decisions** → `DECISIONS.md` (on-demand read, auto-maintained via CLAUDE.md rule)
-- **Architecture, conventions, gotchas** → `CLAUDE.md` (loaded every session)
+- **Decisions, learnings, course corrections** → `DECISIONS.md` (logged in real-time during the session, with `--learn` as safety net)
+- **Architecture, conventions, gotchas** → `CLAUDE.md` (loaded every session, updated via `--learn`)
 
 The save process is git-aware — it runs `git diff --stat` and `git status` to capture file changes that weren't explicitly discussed in conversation.
 
