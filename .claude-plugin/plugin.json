@@ -1,0 +1,15 @@
+{
+  "name": "session",
+  "version": "1.0.0",
+  "description": "Session continuity with file-based handoff — saves and restores context across Claude Code sessions",
+  "author": {
+    "name": "Internet Marketing Agentur",
+    "email": "a.draeger@internet-marketing-agentur.com",
+    "url": "https://github.com/Internet-Marketing-Agentur"
+  },
+  "repository": "https://github.com/Internet-Marketing-Agentur/cc-skill-session-handoff",
+  "license": "UNLICENSED",
+  "keywords": [
+    "session"
+  ]
+}
