@@ -4,9 +4,12 @@ description: >
   Session continuity with file-based handoff — saves and restores context across Claude Code sessions.
   Use this skill whenever the user wants to save, store, persist, or hand off their current session state,
   or when they want to resume, continue, restore, or pick up where they left off.
-  Trigger words: "handoff", "save session", "speichern", "save", "continue later", "resume",
-  "weitermachen", "load", "fortsetzen", "pick up", "where did we leave off", "last session",
-  "session history", "past sessions".
+  Trigger phrases (must indicate session/context, not a file-save): "handoff", "save session",
+  "save context", "save our progress", "session speichern", "sitzung speichern", "continue later",
+  "resume", "resume session", "weitermachen", "load session", "fortsetzen", "pick up where we left off",
+  "where did we leave off", "last session", "session history", "past sessions".
+  Do NOT trigger on bare "save"/"speichern" when it clearly refers to a file or code ("save this file",
+  "save the config", "speicher die Datei").
   Also trigger PROACTIVELY: (1) at session start if memory/HANDOFF.md exists — offer to resume,
   (2) when context window is getting large — suggest saving before information is lost.
   Even if the user doesn't explicitly mention "session" or "handoff", trigger this skill whenever
@@ -19,6 +22,16 @@ Preserve session context across conversation boundaries so the next session can 
 
 The core idea: a session produces two kinds of knowledge — **ephemeral state** (what's in progress right now) and **persistent insights** (what we learned about the project). HANDOFF.md captures the ephemeral state so the next session can resume. Persistent insights like project architecture, conventions, and discoveries belong in CLAUDE.md where they're available in every session automatically. The `--learn` option helps bridge the two.
 
+## Memory Directory Resolution
+
+Resolve `{memory_directory}` in this order, stopping at the first that applies:
+
+1. An explicit path the user provides in the current request (e.g. "save to `docs/sessions/`")
+2. `$CLAUDE_MEMORY_DIR` if set in the environment
+3. `./.claude/memory/` relative to the project root (the git top-level, or CWD if not a git repo)
+
+If the resolved directory doesn't exist yet, create it before writing. Always write HANDOFF files to this same directory so save and resume stay consistent. Remind the user once per project to add `.claude/memory/HANDOFF*.md` to `.gitignore` if the resolved path is inside the repo — handoffs can contain error messages with tokens or internal paths.
+
 ## Parameters
 
 - **learn** (default: off): When enabled, the save process also identifies discoveries and decisions that belong in CLAUDE.md rather than HANDOFF.md, and suggests appending them. Usage: `/session save --learn` or "save session with learn"
@@ -26,12 +39,16 @@ The core idea: a session produces two kinds of knowledge — **ephemeral state**
 ## Mode Detection
 
 Determine mode from user input:
-- **save**: "handoff", "save", "speichern", "continue later", "save session", or context is running low
-- **resume**: "resume", "load", "weitermachen", "fortsetzen", "pick up", "where did we leave off", "last session"
+- **save**: "handoff", "save session", "save context", "session speichern", "continue later", or context is running low
+- **resume**: "resume", "resume session", "load session", "weitermachen", "fortsetzen", "pick up where we left off", "where did we leave off", "last session"
 - **history**: "session history", "past sessions", "session log", `/session history`
 - **auto-detect**: If `{memory_directory}/HANDOFF.md` exists and no explicit mode given, offer resume
 
-If ambiguous, ask the user.
+Bare "save" / "speichern" without session context almost always refers to a file — do **not** trigger save mode in that case. Ask the user to confirm before activating the skill if intent is ambiguous.
+
+## Language
+
+All user-facing output (summaries, confirmations, questions) must match the language of the user's most recent message. Detect it explicitly before writing anything back: if the triggering message is in German, respond in German; if English, English; otherwise match whatever language the user used. The **file contents** of HANDOFF.md itself stay in English for consistency across tools and future sessions — only the conversational wrapper adapts.
 
 ---
 
@@ -201,8 +218,10 @@ Ask the user what they'd like to work on. If there are distinct open items, use 
 Rename the handoff file so it doesn't trigger resume offers in future sessions:
 
 ```bash
-mv "{memory_directory}/HANDOFF.md" "{memory_directory}/HANDOFF-{YYYY-MM-DD}.md"
+mv "{memory_directory}/HANDOFF.md" "{memory_directory}/HANDOFF-{YYYY-MM-DD-HHMM}.md"
 ```
+
+If an archive with the same timestamp already exists (e.g. two saves within the same minute), append a numeric suffix: `HANDOFF-{YYYY-MM-DD-HHMM}-2.md`.
 
 ---
 
@@ -212,7 +231,7 @@ Show a summary of past sessions from archived handoff files.
 
 ### Step 1: Find Archives
 
-List all `HANDOFF-*.md` files in `{memory_directory}/`, sorted by date (newest first). Also check if a current `HANDOFF.md` exists (unarchived).
+List all `HANDOFF-*.md` files in `{memory_directory}/`, sorted by filename (newest first — the `YYYY-MM-DD-HHMM` prefix sorts lexicographically). Also check if a current `HANDOFF.md` exists (unarchived).
 
 ### Step 2: Display Timeline
 

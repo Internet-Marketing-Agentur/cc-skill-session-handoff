@@ -120,10 +120,14 @@ After resuming, Claude presents a summary and asks where to continue.
 ## File structure
 
 ```
-session/
-├── SKILL.md              # Skill definition (loaded by Claude Code)
-├── CLAUDE.md.template    # Template for persistent project knowledge
-├── DECISIONS.md.template # Template for decision log (on-demand, auto-maintained)
+cc-skill-session-handoff/
+├── .claude-plugin/
+│   └── plugin.json        # Plugin manifest (name, version, author)
+├── commands/
+│   └── session.md         # Slash command: /session [save|resume|history] [--learn]
+├── SKILL.md               # Skill definition (loaded by Claude Code)
+├── CLAUDE.md.template     # Template for persistent project knowledge
+├── DECISIONS.md.template  # Template for decision log (on-demand, auto-maintained)
 ├── README.md
 └── LICENSE
 ```
