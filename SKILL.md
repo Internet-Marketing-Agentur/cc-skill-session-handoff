@@ -56,7 +56,17 @@ All user-facing output (summaries, confirmations, questions) must match the lang
 
 ### Step 1: Analyze the Session
 
-Review the entire conversation — not just the last few exchanges. Also run `git diff --stat` and `git status` to capture file changes that may not have been explicitly discussed.
+Review the entire conversation — not just the last few exchanges. Also capture repository state the conversation may not have surfaced:
+
+```bash
+git branch --show-current              # current branch
+git status --short                     # uncommitted changes
+git diff --stat                        # scope of uncommitted work
+git log --oneline @{upstream}..HEAD    # local commits not yet pushed (ignore errors if no upstream)
+git stash list                         # stashes that might hold in-progress work
+```
+
+Include the branch name and any unpushed commits or stashes in the handoff — they're easy to forget and painful to rediscover.
 
 Focus on **session state** — what's needed to resume work:
 
@@ -167,9 +177,9 @@ After writing the file:
 1. **Display** the handoff content in a fenced code block
 2. **Copy to clipboard** using a platform-detecting fallback chain:
    ```bash
-   cat "{memory_directory}/HANDOFF.md" | (pbcopy 2>/dev/null || xclip -selection clipboard 2>/dev/null || wl-copy 2>/dev/null || true)
+   cat "{memory_directory}/HANDOFF.md" | (pbcopy 2>/dev/null || xclip -selection clipboard 2>/dev/null || wl-copy 2>/dev/null || clip.exe 2>/dev/null || true)
    ```
-   This tries macOS (`pbcopy`), Linux X11 (`xclip`), Linux Wayland (`wl-copy`) in order. If none are available, it silently succeeds — the file is saved either way.
+   Tries macOS (`pbcopy`), Linux X11 (`xclip`), Linux Wayland (`wl-copy`), and Windows / WSL / Git Bash (`clip.exe`) in order. If none are available, it silently succeeds — the file is saved either way.
 3. **Confirm** in the user's language, e.g.: "Session saved to `memory/HANDOFF.md` and copied to clipboard."
 
 ---
@@ -179,10 +189,9 @@ After writing the file:
 ### Step 1: Load Context
 
 1. Read `{memory_directory}/HANDOFF.md`
-2. Read `{memory_directory}/MEMORY.md` for background project context (if it exists)
-3. If no HANDOFF.md exists, tell the user and start fresh
+2. If no HANDOFF.md exists, tell the user and start fresh
 
-MEMORY.md provides stable project knowledge (managed by auto-memory). HANDOFF.md provides the specific resume point. Use both together — MEMORY.md for "what is this project" and HANDOFF.md for "where exactly did we stop."
+Project-level knowledge lives in `CLAUDE.md` (already loaded by Claude Code) and `DECISIONS.md` (read on demand when decision rationale is needed). HANDOFF.md only provides the specific resume point for the session that just ended.
 
 ### Step 2: Show Summary
 
@@ -213,15 +222,19 @@ Omit sections that are empty in the handoff.
 
 Ask the user what they'd like to work on. If there are distinct open items, use AskUserQuestion to let them pick. Otherwise ask as free text.
 
-### Step 4: Archive
+### Step 4: Archive (only after the user actually resumes)
 
-Rename the handoff file so it doesn't trigger resume offers in future sessions:
+Do **not** archive HANDOFF.md at the moment the summary is shown. If the user says "never mind, start fresh" or drops the topic, the handoff should stay available for the next session.
+
+Archive only once the user confirms they're continuing with the previous work — i.e. picks an open item, asks a follow-up question about it, or explicitly says "let's continue". At that point:
 
 ```bash
 mv "{memory_directory}/HANDOFF.md" "{memory_directory}/HANDOFF-{YYYY-MM-DD-HHMM}.md"
 ```
 
 If an archive with the same timestamp already exists (e.g. two saves within the same minute), append a numeric suffix: `HANDOFF-{YYYY-MM-DD-HHMM}-2.md`.
+
+If the user explicitly declines to resume ("start fresh", "ignore that"), offer to delete HANDOFF.md or leave it untouched — don't archive it silently.
 
 ---
 
@@ -277,11 +290,10 @@ When significant work has accumulated and the conversation is getting long, sugg
 
 ## Boundaries
 
-- **MEMORY.md is read-only.** It's managed by the auto-memory system and contains stable project knowledge. This skill reads it but never writes to it.
 - **CLAUDE.md** may only be modified when `--learn` is enabled and the user confirms the suggested additions.
-- **DECISIONS.md** is appended automatically when `--learn` is enabled — no confirmation needed for decisions, since the CLAUDE.md rule already authorizes this.
+- **DECISIONS.md** is appended automatically when `--learn` is enabled — no confirmation needed, since the CLAUDE.md rule in the template already authorizes it.
 - **HANDOFF.md is ephemeral.** It represents a single session transition. Stable knowledge belongs in CLAUDE.md, decisions in DECISIONS.md.
-- Use the project's auto-memory directory path for file operations.
+- Resolve `{memory_directory}` per the rules in the "Memory Directory Resolution" section above — never hard-code a path.
 
 ---
 
