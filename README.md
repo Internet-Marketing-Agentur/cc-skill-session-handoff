@@ -27,16 +27,23 @@ Say any of these to Claude Code:
 
 > "save session" · "handoff" · "speichern" · "continue later" · "save"
 
-Claude reviews the entire conversation — not just the last few exchanges — and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard (macOS, Linux X11, and Wayland supported).
+Claude reviews the entire conversation — not just the last few exchanges — and writes a structured `HANDOFF.md` to `<project-root>/.claude/memory/HANDOFF.md`. The content is also copied to your clipboard (macOS, Linux X11, and Wayland supported). If the project is a git repo, Claude ensures `.claude/memory/` is in `.gitignore` (creating the file if none exists) — handoffs can contain sensitive context and should not be committed.
 
-#### `--learn` option
+#### Learning extraction (auto-detect by default)
 
-> "save session with learn" · `/session save --learn`
+By default, every save scans the session for **stable project knowledge** — architectural decisions, discoveries, conventions, setup quirks. If candidates are found, Claude asks once whether to log them; if nothing is found, it stays silent. No flag needed.
 
-When enabled, Claude extracts stable knowledge from the session and routes it to the right place:
+To override the auto-detect:
 
-- **Decisions** → `DECISIONS.md` (appended automatically — date, decision, rationale, alternatives)
-- **Insights** → `CLAUDE.md` (architecture, conventions, gotchas — only after your confirmation)
+| Flag / phrase | Behavior |
+|---|---|
+| `/session save --learn` · "save with learnings" · "speicher mit lernen" | Force extraction even if heuristics find nothing |
+| `/session save --no-learn` · "skip learnings" · "ohne lernen" | Suppress extraction completely |
+
+When learning is active, candidates route to:
+
+- **Decisions** → `<project-root>/DECISIONS.md` (appended automatically — date, decision, rationale, alternatives)
+- **Insights** → `<project-root>/CLAUDE.md` (architecture, conventions, gotchas — only after your confirmation)
 
 This keeps HANDOFF.md lean (session state only) while ensuring project knowledge isn't lost.
 
@@ -122,15 +129,19 @@ After resuming, Claude presents a summary and asks where to continue.
 ```
 cc-skill-session-handoff/
 ├── .claude-plugin/
-│   └── plugin.json        # Plugin manifest (name, version, author)
+│   └── plugin.json              # Plugin manifest (name, version, author)
 ├── commands/
-│   └── session.md         # Slash command: /session [save|resume|history] [--learn]
-├── SKILL.md               # Skill definition (loaded by Claude Code)
-├── CLAUDE.md.template     # Template for persistent project knowledge
-├── DECISIONS.md.template  # Template for decision log (on-demand, auto-maintained)
+│   └── session.md               # Slash command: /session [save|resume|history] [--learn|--no-learn]
+├── scripts/
+│   └── session_helper.py        # Python helper (paths, archive, gitignore, migrate, list)
+├── SKILL.md                     # Skill definition (loaded by Claude Code)
+├── CLAUDE.md.template           # Template for persistent project knowledge
+├── DECISIONS.md.template        # Template for decision log (on-demand, auto-maintained)
 ├── README.md
 └── LICENSE
 ```
+
+The Python helper collapses the deterministic parts (path resolution, existence checks, archive renaming, gitignore updates, legacy file migration, history listing) into a single subprocess call per operation. It returns JSON for Claude to consume, which keeps the skill fast and token-efficient. Python 3 standard library only — no dependencies.
 
 ## Requirements
 
