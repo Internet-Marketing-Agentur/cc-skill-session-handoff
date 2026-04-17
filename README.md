@@ -36,9 +36,11 @@ After install, restart the session once so Claude Code picks up the skill and th
 
 Say any of these to Claude Code:
 
-> "save session" · "handoff" · "speichern" · "continue later" · "save"
+> "save session" · "handoff" · "save context" · "session speichern" · "continue later" · `/session save`
 
-Claude reviews the entire conversation — not just the last few exchanges — and writes a structured `HANDOFF.md` to your project's memory directory. The content is also copied to your clipboard (macOS, Linux X11, and Wayland supported).
+Bare "save" / "speichern" is **not** a trigger — it would collide with "save the file". The phrase has to reference the session or context.
+
+Claude reviews the entire conversation, runs a git snapshot (branch, status, diff-stat, unpushed commits, stashes), and writes a structured `HANDOFF.md`. The content is also copied to your clipboard — macOS (`pbcopy`), Linux X11 (`xclip`), Linux Wayland (`wl-copy`), and Windows / WSL / Git Bash (`clip.exe`) are all supported.
 
 #### `--learn` option
 
@@ -46,7 +48,7 @@ Claude reviews the entire conversation — not just the last few exchanges — a
 
 When enabled, Claude extracts stable knowledge from the session and routes it to the right place:
 
-- **Decisions** → `DECISIONS.md` (appended automatically — date, decision, rationale, alternatives)
+- **Decisions** → `DECISIONS.md` (appended automatically — date, decision, rationale, alternatives). Existing entries are read first and deduplicated: exact matches are skipped, refinements/reversals are appended with a `Supersedes:` cross-reference, and the log stays append-only.
 - **Insights** → `CLAUDE.md` (architecture, conventions, gotchas — only after your confirmation)
 
 This keeps HANDOFF.md lean (session state only) while ensuring project knowledge isn't lost.
@@ -55,9 +57,9 @@ This keeps HANDOFF.md lean (session state only) while ensuring project knowledge
 
 Say any of these:
 
-> "resume" · "load" · "weitermachen" · "fortsetzen" · "pick up" · "where did we leave off" · "last session"
+> "resume" · "resume session" · "load session" · "weitermachen" · "fortsetzen" · "pick up where we left off" · "where did we leave off" · "last session" · `/session resume`
 
-Claude reads the handoff file, shows a summary, and asks what to work on next. The handoff file is then archived to prevent duplicate resume offers.
+Claude reads the handoff file and shows a summary. Archiving happens **only after you actually continue** — pick an open item, ask a follow-up, or say "let's continue". If you say "start fresh" instead, the handoff stays in place (or is deleted on request) rather than silently disappearing.
 
 ### View session history
 
@@ -72,7 +74,7 @@ Shows a timeline of all archived sessions with date, goal, and status. Useful fo
 
 ## How it works
 
-The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sections:
+The skill writes a structured markdown file (`HANDOFF.md`) with these sections:
 
 | Section | Purpose |
 |---|---|
@@ -88,11 +90,31 @@ Project-level knowledge belongs elsewhere — use `--learn` to extract it:
 - **Decisions** → `DECISIONS.md` (on-demand read, auto-maintained via CLAUDE.md rule)
 - **Architecture, conventions, gotchas** → `CLAUDE.md` (loaded every session)
 
-The save process is git-aware — it runs `git diff --stat` and `git status` to capture file changes that weren't explicitly discussed in conversation.
+### Where files are stored
 
-The file is sized adaptively — ~250 tokens for a quick bug fix, up to ~1500 for complex multi-system work. The skill errs toward completeness: a longer handoff that captures everything is more valuable than a short one that forces the next session to rediscover context.
+`{memory_directory}` resolves in this order, stopping at the first that applies:
 
-The skill responds in the user's language — it adapts automatically to English, German, or whatever language the conversation is in.
+1. An explicit path you give in the request (e.g. "save to `docs/sessions/`")
+2. `$CLAUDE_MEMORY_DIR` if set in the environment
+3. `.claude/memory/` relative to the git top-level (or CWD if not a git repo)
+
+Archived handoffs are named `HANDOFF-YYYY-MM-DD-HHMM.md` so multiple saves per day don't collide.
+
+### Git awareness
+
+The save process captures repo state the conversation may not have surfaced: current branch, `git status --short`, `git diff --stat`, unpushed commits (`@{upstream}..HEAD`), and `git stash list`. Branches, local-only commits, and stashes are the details you'd otherwise rediscover the hard way.
+
+### Language
+
+The conversational wrapper (summaries, confirmations, questions) matches the language of your message — German in, German out. The **contents of HANDOFF.md** stay in English for cross-tool consistency.
+
+### Size
+
+The file is sized adaptively — ~250 tokens for a quick bug fix, up to ~1500 for complex multi-system work. The skill errs toward completeness: a longer handoff that captures everything beats a short one that forces rediscovery.
+
+### Security
+
+Handoffs can contain error messages with tokens, internal paths, or other sensitive strings. If the resolved memory directory sits inside your repo, add `**/HANDOFF*.md` (or the matching pattern) to `.gitignore` before your first commit.
 
 ## Example
 
