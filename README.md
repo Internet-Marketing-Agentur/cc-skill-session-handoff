@@ -15,8 +15,19 @@ The `--learn` option bridges the two by extracting stable insights from a sessio
 
 ## Install
 
+Clone into your Claude Code skills directory:
+
 ```bash
-claude skill install gh:Internet-Marketing-Agentur/cc-skill-session-handoff
+git clone https://github.com/Internet-Marketing-Agentur/cc-skill-session-handoff.git \
+  ~/.claude/skills/session
+```
+
+Then restart Claude Code (or run `/reload-plugins`) and the skill is available.
+
+### Update
+
+```bash
+cd ~/.claude/skills/session && git pull
 ```
 
 ## Usage
