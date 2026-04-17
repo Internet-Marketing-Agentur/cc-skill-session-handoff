@@ -11,7 +11,7 @@ This skill solves that by separating two kinds of knowledge:
 - **Session state** (HANDOFF.md) — ephemeral: current task, open items, key files, dead ends. Consumed by the next session, then archived.
 - **Project knowledge** (CLAUDE.md) — persistent: architecture, conventions, discoveries, gotchas. Available in every session automatically.
 
-The `--learn` option bridges the two by extracting stable insights from a session into CLAUDE.md. A `CLAUDE.md.template` is included to help structure your project knowledge.
+Every save auto-detects stable insights from the session and routes them into CLAUDE.md (after confirmation) and DECISIONS.md. The `--learn` / `--no-learn` flags override the heuristic when needed. A `CLAUDE.md.template` is included to help structure your project knowledge.
 
 ## Install
 
@@ -90,10 +90,10 @@ The skill writes a structured markdown file (`memory/HANDOFF.md`) with these sec
 | **Dead Ends** | Approaches tried and abandoned (prevents repeating them) |
 | **Decisions** | Choices made and why |
 
-Project-level knowledge belongs elsewhere — use `--learn` to extract it:
+Project-level knowledge belongs elsewhere — every save auto-detects candidates and routes them:
 
-- **Decisions** → `DECISIONS.md` (on-demand read, auto-maintained via CLAUDE.md rule)
-- **Architecture, conventions, gotchas** → `CLAUDE.md` (loaded every session)
+- **Decisions** → `<project-root>/DECISIONS.md` (appended automatically — date, decision, rationale, alternatives)
+- **Architecture, conventions, gotchas** → `<project-root>/CLAUDE.md` (loaded every session, only after your confirmation)
 
 The save process is git-aware — it runs `git diff --stat` and `git status` to capture file changes that weren't explicitly discussed in conversation.
 
