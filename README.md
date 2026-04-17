@@ -15,9 +15,20 @@ The `--learn` option bridges the two by extracting stable insights from a sessio
 
 ## Install
 
-```bash
-claude skill install gh:Internet-Marketing-Agentur/cc-skill-session-handoff
+Claude Code plugins install via the `/plugin` slash command — not a CLI flag. From inside a Claude Code session:
+
 ```
+/plugin marketplace add Internet-Marketing-Agentur/cc-skill-session-handoff
+/plugin install cc-skill-session-handoff@Internet-Marketing-Agentur-cc-skill-session-handoff
+```
+
+Or interactively:
+
+1. Run `/plugin`
+2. Go to **Marketplaces** → add `Internet-Marketing-Agentur/cc-skill-session-handoff`
+3. Go to **Discover** → find this plugin → install
+
+After install, restart the session once so Claude Code picks up the skill and the `/session` command.
 
 ## Usage
 

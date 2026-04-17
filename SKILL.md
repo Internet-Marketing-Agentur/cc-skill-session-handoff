@@ -139,6 +139,13 @@ If the user enabled learn, review the session for **stable project knowledge** �
 - Format per `DECISIONS.md.template` bundled with this skill
 - If no `DECISIONS.md` exists yet, create one from the template
 
+**Dedup before appending.** Read the existing `DECISIONS.md` first. For each candidate decision, compare against existing entries semantically — not just by title string. A match exists when an earlier entry covers the same choice (same subject + same resolution), even if the wording differs. Three cases:
+- **No match** → append as a new entry.
+- **Exact duplicate** (same subject, same decision, same rationale) → skip silently.
+- **Refinement / reversal** (same subject, different decision or expanded rationale) → append a new entry, but cross-reference the earlier one: `**Supersedes:** 2026-02-26 — OAuth library choice`.
+
+Never edit or delete existing entries — the log is append-only, history matters.
+
 **→ CLAUDE.md** (only after user confirmation):
 - **Architecture**: component relationships, structural insights
 - **Conventions**: patterns, naming, workflow rules established
