@@ -14,6 +14,7 @@ description: >
   (2) when context window is getting large — suggest saving before information is lost.
   Even if the user doesn't explicitly mention "session" or "handoff", trigger this skill whenever
   they clearly want to preserve work for later or restore previous work.
+allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion, Bash
 ---
 
 # Session Handoff
