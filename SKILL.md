@@ -99,32 +99,17 @@ python3 "$HELPER" paths --cwd "$PWD"
 
 ## Parameters
 
-The `learn` parameter controls whether the save process tries to extract stable project knowledge into `DECISIONS.md` and `CLAUDE.md`. Three settings:
+The `learn` parameter controls whether the save process tries to extract stable project knowledge into `DECISIONS.md` and `CLAUDE.md`. **Default is off.** Auto-detect was removed because it triggered a CLAUDE.md/DECISIONS.md prompt on almost every session and produced bloat.
 
-| Mode | When to use | Behavior |
+| Mode | When | Behavior |
 |---|---|---|
-| `--learn` | User explicitly asks for it (CLI flag or natural-language trigger) | Force extraction even if heuristics find no obvious candidates. |
-| `--no-learn` | User explicitly suppresses it | Skip extraction entirely. HANDOFF.md only. |
-| **default** (auto-detect) | No explicit flag | Scan the session for candidates. If found, **ask once** whether to log them. If not found, stay silent. |
+| `--learn` (explicit only) | User asks for it via flag or natural-language trigger | Run extraction with the quality filter (see Step 5). |
+| **default** | Anything else | HANDOFF.md only. No scan, no prompt, no learnings step. |
 
-**Auto-detect heuristics** — look for any of:
-
-- Decision markers: *"decided to", "we'll use X over Y", "going with", "chose", "rejected", "abandoned in favor of"*
-- Discovery markers: *"turns out", "it's because", "gotcha", "watch out for", "actually", "the real reason"*
-- Convention markers: *"from now on", "convention is", "always do X", "never do Y", "rule:"*
-- Setup-quirk markers: *"need to", "first run", "prerequisite", "must have", "won't work without"*
-
-If at least one candidate is detected, prompt:
-
-> *"This session contains [N] possible DECISIONS entries and [M] CLAUDE.md insights. Should I log them?"*
-
-The user answers yes/no. Treat *yes* as if `--learn` had been set; treat *no* as `--no-learn`.
-
-**Natural-language triggers for explicit `--learn`:**
+**Natural-language triggers for `--learn`:**
 *"with learn", "with learnings", "save learnings", "save with lessons learned", "mit lernen", "und merke dir", "speichere mit lessons learned", "speicher Erkenntnisse"*.
 
-**Natural-language triggers for explicit `--no-learn`:**
-*"no learn", "skip learnings", "ohne lernen", "nur handoff"*.
+If the user explicitly suppresses learn (*"no learn", "ohne lernen", "nur handoff"*) just acknowledge — that's the default anyway, no need to do anything different.
 
 ## Mode Detection
 
@@ -146,7 +131,9 @@ All user-facing output (summaries, confirmations, questions) must match the lang
 
 ### Step 1: Analyze the Session
 
-First, run the helper preamble (see Helper Script section) to resolve all paths and existence flags in one call. Then review the entire conversation — not just the last few exchanges. Also run `git diff --stat` and `git status` to capture file changes that may not have been explicitly discussed.
+Run the helper preamble (see Helper Script section) to resolve all paths and existence flags in one call. Summarize from the recent conversation that's already in context — don't re-read every prior turn.
+
+Git inspection is **lazy**: if the user already named the files they worked on, skip git entirely. Otherwise run `git status` first, and only run `git diff --stat` when status shows modified files worth describing. The goal is a fast handoff, not a full repo audit.
 
 Focus on **session state** — what's needed to resume work:
 
@@ -209,11 +196,24 @@ Write to `{memory_directory}/HANDOFF.md`:
 
 Keep a "Dead Ends" section when approaches were tried and abandoned — this prevents the next session from repeating them. Omit it if there were no dead ends.
 
-### Step 5: Extract learnings (when learn is active)
+### Step 5: Extract learnings (only when `--learn` is explicit)
 
-`learn` is active if (a) the user passed `--learn` explicitly, or (b) the user passed nothing and the auto-detect heuristics (see Parameters section) found at least one candidate AND the user confirmed when prompted. If `learn` is not active, skip this step entirely.
+If `--learn` was not explicitly requested, skip this step entirely. **No auto-detect, no scan, no prompt.**
 
-Review the session for **stable project knowledge** — things that will be true next week, not just next session. Route them to the right file:
+When it IS active, apply a strict quality filter before suggesting anything. The goal is to keep CLAUDE.md lean and durable — most session findings do NOT belong there.
+
+**Pre-flight (mandatory) — must run before proposing anything:**
+1. Read the existing `<project-root>/CLAUDE.md` if it exists.
+2. Read `MEMORY.md` (resolved by the helper).
+3. For every candidate insight, drop it if it is already covered, paraphrased, or clearly implied by either file. Do not suggest duplicates or near-duplicates.
+
+**Quality bar for CLAUDE.md** — every candidate must pass ALL four:
+- **Project-specific** (not general programming knowledge a fresh Claude already knows)
+- **Non-obvious** (would surprise someone reading the codebase cold — if the code makes it self-evident, skip)
+- **Durably true** (still correct in three months — not current task state, not a temporary workaround)
+- **Not already in CLAUDE.md or MEMORY.md**
+
+**Cap:** max **3** CLAUDE.md suggestions per save. If more candidates pass the bar, present only the strongest 3 and mention that there were others.
 
 **→ DECISIONS.md** (target: `<project-root>/DECISIONS.md`, appended automatically, no confirmation needed — entries are additive and easily reverted):
 - Technical or architectural decisions made during the session
@@ -222,13 +222,11 @@ Review the session for **stable project knowledge** — things that will be true
 - If no `<project-root>/DECISIONS.md` exists, apply the **DECISIONS.md fallback** (see File Locations) before creating a new one from the template
 
 **→ CLAUDE.md** (target: `<project-root>/CLAUDE.md`, only after user confirmation):
-- **Architecture**: component relationships, structural insights
-- **Conventions**: patterns, naming, workflow rules established
-- **Environment & Setup**: setup quirks, test prerequisites, required tooling
-- **Discoveries & Gotchas**: undocumented behavior, surprising dependencies
+- Sections to consider: Architecture, Conventions, Environment & Setup, Discoveries & Gotchas
+- If after the quality filter nothing remains, say so explicitly and do **not** prompt — silence is the right answer.
 - If no `<project-root>/CLAUDE.md` exists, suggest creating one from `CLAUDE.md.template`
 
-Present the split clearly:
+**Present neutrally — do not lead the user toward yes:**
 
 ```
 Logged to DECISIONS.md:
@@ -240,17 +238,15 @@ Logged to DECISIONS.md:
 
 ---
 
-These insights could go into CLAUDE.md:
+Candidates for CLAUDE.md (most session findings don't belong here — review skeptically):
+1. Auth middleware in `src/middleware/auth.py` swallows errors silently
+2. Alembic env.py needs async patch (fix in `alembic/env.py:42-58`)
+3. Tests require `TEST_DATABASE_URL` env var
 
-**Discoveries & Gotchas**
-- Auth middleware in `src/middleware/auth.py` swallows errors silently
-
-**Environment & Setup**
-- Alembic env.py needs async patch (fix in `alembic/env.py:42-58`)
-- Tests require `TEST_DATABASE_URL` env var
-
-Should I add these to CLAUDE.md?
+Add which ones? (none / numbers / all)
 ```
+
+If zero candidates pass the bar, just confirm "No CLAUDE.md additions needed this session." and stop.
 
 ### Step 6: Ensure Gitignore & Confirm to User
 
@@ -440,16 +436,12 @@ Logged to DECISIONS.md:
 
 ---
 
-These insights could go into CLAUDE.md:
+Candidates for CLAUDE.md (most session findings don't belong here — review skeptically):
+1. Auth middleware in `src/middleware/auth.py` swallows errors silently
+2. Alembic env.py needs async patch (fix in `alembic/env.py:42-58`)
+3. Tests require `TEST_DATABASE_URL` env var
 
-**Discoveries & Gotchas**
-- Auth middleware in `src/middleware/auth.py` swallows errors silently
-
-**Environment & Setup**
-- Alembic env.py needs async patch (fix in `alembic/env.py:42-58`)
-- Tests require `TEST_DATABASE_URL` env var
-
-Should I add these to CLAUDE.md?
+Add which ones? (none / numbers / all)
 ```
 
 **Resume output** (shown to user):
