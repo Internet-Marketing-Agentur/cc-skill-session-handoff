@@ -1,6 +1,7 @@
 ---
 name: session
 description: "Session continuity with file-based handoff for Claude Code sessions. Use when saving, resuming, migrating, or handing off session context; not for ordinary file saves."
+allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion, Bash
 ---
 
 # Session Handoff
