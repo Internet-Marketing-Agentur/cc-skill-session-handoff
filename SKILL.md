@@ -1,19 +1,6 @@
 ---
 name: session
-description: >
-  Session continuity with file-based handoff — saves and restores context across Claude Code sessions.
-  Use this skill whenever the user wants to save, store, persist, or hand off their current session state,
-  or when they want to resume, continue, restore, or pick up where they left off.
-  Trigger phrases (must indicate session/context, not a file-save): "handoff", "save session",
-  "save context", "save our progress", "session speichern", "sitzung speichern", "continue later",
-  "resume", "resume session", "weitermachen", "load session", "fortsetzen", "pick up where we left off",
-  "where did we leave off", "last session", "session history", "past sessions".
-  Do NOT trigger on bare "save"/"speichern" when it clearly refers to a file or code ("save this file",
-  "save the config", "speicher die Datei").
-  Also trigger PROACTIVELY: (1) at session start if memory/HANDOFF.md exists — offer to resume,
-  (2) when context window is getting large — suggest saving before information is lost.
-  Even if the user doesn't explicitly mention "session" or "handoff", trigger this skill whenever
-  they clearly want to preserve work for later or restore previous work.
+description: "Session continuity with file-based handoff for Claude Code sessions. Use when saving, resuming, migrating, or handing off session context; not for ordinary file saves."
 ---
 
 # Session Handoff
