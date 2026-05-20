@@ -145,6 +145,10 @@ A fresh Claude session already knows general programming concepts, standard libr
 
 **Format**: bullet points over prose, paths over content, key error lines over full traces
 
+**Don't duplicate referenced artifacts**: if content already lives in a PRD, plan, ADR, issue, commit, or diff, reference it by path or URL instead of copying it into the handoff.
+
+**Redact secrets**: even though HANDOFF.md is gitignored, it gets copied to the clipboard and may be pasted into other tools. Strip or mask API keys, tokens, passwords, and PII before writing — replace with `<REDACTED>` or the prefix + `...`.
+
 ### Step 3: Size to Complexity
 
 Err toward completeness. Target token ranges:
@@ -180,9 +184,14 @@ Write to `{memory_directory}/HANDOFF.md`:
 
 ## Decisions
 - [Decision and why it was made]
+
+## Suggested Skills
+- `/skill-name` — [why the next session should invoke it]
 ```
 
 Keep a "Dead Ends" section when approaches were tried and abandoned — this prevents the next session from repeating them. Omit it if there were no dead ends.
+
+The "Suggested Skills" section is a shortcut for the next session: list any slash-commands or skills that the next agent should probably invoke first (e.g. `/verify` to confirm a fix, `/seo-audit` to continue a checklist). Only include skills that are concretely relevant — omit the section if nothing applies. Skills that exist in the global skill list at session-start should be referenced by their canonical name.
 
 ### Step 5: Extract learnings (only when `--learn` is explicit)
 
@@ -287,6 +296,9 @@ Present a concise overview in the user's language. Mirror the sections from the 
 
 ### Decisions
 - [Key decisions from this session]
+
+### Suggested Skills
+- `/skill-name` — [why to invoke it now]
 ```
 
 Omit sections that are empty in the handoff.
@@ -405,6 +417,10 @@ Next step: check GitHub app settings, not code.
 - authlib over requests-oauthlib — better async support, less boilerplate
 - Provider tokens encrypted via `cryptography.fernet`, key in env var
 - OAuth is additive — existing JWT login stays
+
+## Suggested Skills
+- `/verify` — run the GitHub OAuth flow end-to-end after scope fix
+- `/security-review` — review token encryption + storage before merging
 ```
 
 **`--learn` output** (decisions logged, CLAUDE.md suggestions):
@@ -451,6 +467,10 @@ Add which ones? (none / numbers / all)
 
 ### Dead Ends
 - GitHub 401 is not a code issue — scope missing in GitHub app config
+
+### Suggested Skills
+- `/verify` — run the GitHub OAuth flow end-to-end after scope fix
+- `/security-review` — review token encryption + storage before merging
 
 What should I continue with?
 ```
