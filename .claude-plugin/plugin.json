@@ -1,7 +1,7 @@
 {
   "name": "session",
-  "version": "1.1.1",
-  "description": "Session continuity with file-based handoff — saves and restores context across Claude Code sessions",
+  "version": "1.2.0",
+  "description": "Session continuity with file-based handoff — saves and restores context across coding-agent sessions (Claude Code, Codex)",
   "author": {
     "name": "Internet Marketing Agentur",
     "email": "a.draeger@internet-marketing-agentur.com",

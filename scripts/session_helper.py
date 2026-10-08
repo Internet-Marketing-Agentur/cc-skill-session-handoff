@@ -33,7 +33,7 @@ CONTEXT_RE = re.compile(r"^##\s*Context\s*$\n+(.+?)(?=^##\s|\Z)", re.MULTILINE |
 # ---------- core helpers ----------
 
 def slug_from_cwd(cwd: str) -> str:
-    """Mirror Claude Code's auto-memory slug: '/Users/x/y' -> '-Users-x-y'."""
+    """Mirror Claude Code's auto-memory slug: '/home/me/proj' -> '-home-me-proj'."""
     return cwd.replace("/", "-")
 
 
@@ -128,8 +128,9 @@ def cmd_paths(args: argparse.Namespace) -> dict:
     decisions_primary = project_root_path / "DECISIONS.md"
     decisions_legacy = legacy_memory_dir / "DECISIONS.md"
 
-    # CLAUDE.md
+    # Rules files: CLAUDE.md (Claude Code) and AGENTS.md (Codex and others)
     claude_primary = project_root_path / "CLAUDE.md"
+    agents_primary = project_root_path / "AGENTS.md"
 
     # gitignore state
     gitignore = project_root_path / ".gitignore"
@@ -182,6 +183,10 @@ def cmd_paths(args: argparse.Namespace) -> dict:
         "claude_md": {
             "primary": str(claude_primary),
             "primary_exists": claude_primary.is_file(),
+        },
+        "agents_md": {
+            "primary": str(agents_primary),
+            "primary_exists": agents_primary.is_file(),
         },
         "gitignore": {
             "path": str(gitignore),

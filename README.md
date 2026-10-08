@@ -30,6 +30,16 @@ Then restart Claude Code (or run `/reload-plugins`) and the skill is available.
 cd ~/.claude/skills/session && git pull
 ```
 
+## Installation in Codex
+
+```bash
+codex plugin marketplace add Internet-Marketing-Agentur/cc-ima-marketplace
+codex plugin add session@cc-ima-marketplace
+```
+
+In Codex there is no auto-memory `MEMORY.md`; the skill works without it. With `--learn`,
+suggestions go to the project's `AGENTS.md` instead of `CLAUDE.md`.
+
 ## Usage
 
 ### Save a session

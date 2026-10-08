@@ -1,6 +1,6 @@
 ---
 name: session
-description: "Session continuity with file-based handoff for Claude Code sessions. Use when saving, resuming, migrating, or handing off session context; not for ordinary file saves."
+description: "Session continuity with file-based handoff for coding-agent sessions (Claude Code, Codex). Use when saving, resuming, migrating, or handing off session context; not for ordinary file saves."
 allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion, Bash
 ---
 
@@ -8,7 +8,9 @@ allowed-tools: Read, Write, Edit, Glob, Grep, AskUserQuestion, Bash
 
 Preserve session context across conversation boundaries so the next session can pick up exactly where this one left off.
 
-The core idea: a session produces two kinds of knowledge — **ephemeral state** (what's in progress right now) and **persistent insights** (what we learned about the project). HANDOFF.md captures the ephemeral state so the next session can resume. Persistent insights like project architecture, conventions, and discoveries belong in CLAUDE.md where they're available in every session automatically. The `--learn` option helps bridge the two.
+**Skill directory:** `SKILL_DIR` is the folder containing this SKILL.md. Claude Code provides it as `${CLAUDE_SKILL_DIR}`; in other agents (e.g. Codex) use this file's folder. Shell variables do not persist between calls – insert SKILL_DIR as an absolute path in every command.
+
+The core idea: a session produces two kinds of knowledge — **ephemeral state** (what's in progress right now) and **persistent insights** (what we learned about the project). HANDOFF.md captures the ephemeral state so the next session can resume. Persistent insights like project architecture, conventions, and discoveries belong in the project's rules file (`CLAUDE.md` or `AGENTS.md`, whichever the project uses) where they're available in every session automatically. The `--learn` option helps bridge the two.
 
 ## File Locations
 
@@ -17,17 +19,19 @@ This skill works with four kinds of files. Each has a defined location:
 | File | Location | Owner | Notes |
 |---|---|---|---|
 | `HANDOFF.md` (+ archives) | `{memory_directory}` (see resolver below) | this skill | Ephemeral, session-bound, **must be gitignored** |
-| `MEMORY.md` | `~/.claude/projects/<cwd-slug>/memory/MEMORY.md` (auto-memory default) | auto-memory system | Read-only for this skill |
+| `MEMORY.md` | `{memory_directory}/MEMORY.md`, or `~/.claude/projects/<cwd-slug>/memory/MEMORY.md` (Claude Code auto-memory only) | auto-memory system | Read-only for this skill; optional — missing is not an error |
 | `DECISIONS.md` | **project root** (`<project-root>/DECISIONS.md`) | this skill (via `--learn`) | Persistent architectural log, committed to repo |
-| `CLAUDE.md` | **project root** (`<project-root>/CLAUDE.md`) | user (suggested by `--learn`) | Persistent project knowledge, committed to repo |
+| `CLAUDE.md` or `AGENTS.md` | **project root** (`<project-root>/CLAUDE.md` or `<project-root>/AGENTS.md`) | user (suggested by `--learn`) | Persistent project knowledge, committed to repo |
+
+**Rules file:** wherever this document says `CLAUDE.md`, use the rules file the project actually uses — `CLAUDE.md` (Claude Code) or `AGENTS.md` (Codex and other agents). If both exist, use the one the current agent reads; if neither exists, create the one for the current agent. The helper reports both (`claude_md`, `agents_md`).
 
 ### Resolving `{memory_directory}` (for HANDOFF.md only)
 
 In order, stopping at the first that applies:
 
 1. An explicit path the user provides in the current request (e.g. "save to `docs/sessions/`")
-2. `$CLAUDE_MEMORY_DIR` if set in the environment
-3. `<project-root>/.claude/memory/` (project root = git top-level, or CWD if not a git repo)
+2. `$CLAUDE_MEMORY_DIR` if set in the environment (plain environment variable, works in any agent)
+3. `<project-root>/.claude/memory/` (project root = git top-level, or CWD if not a git repo; a plain project folder, works in any agent)
 
 Project-local storage is the default because it travels with the project when the directory is moved or copied. Always write HANDOFF files to this same directory so save and resume stay consistent. Create the directory if it does not exist.
 
@@ -36,13 +40,15 @@ Project-local storage is the default because it travels with the project when th
 Look in this order, returning the first found (do not merge):
 
 1. `{memory_directory}/MEMORY.md` (project-local, if user moved it there manually)
-2. `~/.claude/projects/<cwd-slug>/memory/MEMORY.md` (auto-memory default)
+2. `~/.claude/projects/<cwd-slug>/memory/MEMORY.md` (Claude Code auto-memory only; absent in Codex)
 
-The slug is derived from the absolute CWD path: replace `/` with `-`, drop the leading `-`. Example: `/Users/achim/Documents/Code/hr` → `-Users-achim-Documents-Code-hr`.
+If neither exists — always the case in Codex and other agents without Claude Code's auto-memory — continue without MEMORY.md; this is not an error.
+
+The slug is derived from the absolute CWD path: replace every `/` with `-` (the leading `-` stays). Example: `/home/me/code/hr` → `-home-me-code-hr`.
 
 ### Fallback for legacy HANDOFF / DECISIONS files
 
-Older sessions may have stored these files under `~/.claude/projects/<cwd-slug>/memory/`. When opening a project for the first time after this skill update:
+Older Claude Code sessions may have stored these files under `~/.claude/projects/<cwd-slug>/memory/`. In other agents this location normally does not exist — skip the fallback silently. When opening a project for the first time after this skill update:
 
 - **HANDOFF.md fallback (RESUME mode)**: If no HANDOFF.md is in `{memory_directory}` but one exists at `~/.claude/projects/<cwd-slug>/memory/HANDOFF.md`, ask the user: *"Found a legacy handoff at the old location. Migrate it into the project folder and resume?"* On confirm, `mv` the file and proceed. On decline, read in place but do not archive it.
 - **DECISIONS.md fallback (`--learn` mode)**: If no `<project-root>/DECISIONS.md` exists but one is found at `~/.claude/projects/<cwd-slug>/memory/DECISIONS.md`, ask: *"Found legacy DECISIONS.md — move it into the project root?"* On confirm, `mv` it. On decline, append to the legacy location for now.
@@ -61,12 +67,7 @@ Reason: handoffs can contain error messages with tokens, internal paths, or sens
 
 All deterministic operations (path resolution, existence checks, header parsing, archive renaming, gitignore hygiene, legacy file migration, archive listing) are delegated to a single Python helper. This collapses what would be 5–8 separate Bash calls per save into 1–2 calls and emits structured JSON for the skill to consume.
 
-**Path:**
-```
-${SESSION_HELPER:-$HOME/.claude/skills/session/scripts/session_helper.py}
-```
-
-Set `SESSION_HELPER` in the environment if the skill is installed under a non-default location (e.g. as a plugin under `~/.claude/plugins/`).
+**Path:** `$SKILL_DIR/scripts/session_helper.py`. In the commands below, `$HELPER` stands for this path — insert it as an absolute path in every command.
 
 **Subcommands** (all output JSON to stdout):
 
@@ -81,13 +82,12 @@ Set `SESSION_HELPER` in the environment if the skill is installed under a non-de
 **Standard preamble for every mode** — run this first, then read the JSON to decide what to do:
 
 ```bash
-HELPER="${SESSION_HELPER:-$HOME/.claude/skills/session/scripts/session_helper.py}"
-python3 "$HELPER" paths --cwd "$PWD"
+python3 "$SKILL_DIR/scripts/session_helper.py" paths --cwd "$PWD"
 ```
 
 ## Parameters
 
-The `learn` parameter controls whether the save process tries to extract stable project knowledge into `DECISIONS.md` and `CLAUDE.md`. **Default is off.** Auto-detect was removed because it triggered a CLAUDE.md/DECISIONS.md prompt on almost every session and produced bloat.
+The `learn` parameter controls whether the save process tries to extract stable project knowledge into `DECISIONS.md` and the rules file (`CLAUDE.md` or `AGENTS.md`). **Default is off.** Auto-detect was removed because it triggered a CLAUDE.md/DECISIONS.md prompt on almost every session and produced bloat.
 
 | Mode | When | Behavior |
 |---|---|---|
@@ -137,7 +137,7 @@ Don't capture project architecture, tech stack, conventions, or discoveries here
 
 The goal is information density — but err on the side of including too much rather than too little. A handoff that's too brief forces the next session to rediscover context, which is the exact problem this skill exists to solve.
 
-A fresh Claude session already knows general programming concepts, standard library APIs, and common patterns — don't repeat those. Focus on what's unique to *this project* and *this session*:
+A fresh agent session already knows general programming concepts, standard library APIs, and common patterns — don't repeat those. Focus on what's unique to *this project* and *this session*:
 
 **High value** (include): file paths, function names, error messages, decisions with rationale, dead ends and why they failed, current hypothesis, reproduction steps, relevant IDs/URLs
 
@@ -200,12 +200,12 @@ If `--learn` was not explicitly requested, skip this step entirely. **No auto-de
 When it IS active, apply a strict quality filter before suggesting anything. The goal is to keep CLAUDE.md lean and durable — most session findings do NOT belong there.
 
 **Pre-flight (mandatory) — must run before proposing anything:**
-1. Read the existing `<project-root>/CLAUDE.md` if it exists.
+1. Read the existing rules file (`<project-root>/CLAUDE.md` or `<project-root>/AGENTS.md`) if it exists.
 2. Read `MEMORY.md` (resolved by the helper).
 3. For every candidate insight, drop it if it is already covered, paraphrased, or clearly implied by either file. Do not suggest duplicates or near-duplicates.
 
 **Quality bar for CLAUDE.md** — every candidate must pass ALL four:
-- **Project-specific** (not general programming knowledge a fresh Claude already knows)
+- **Project-specific** (not general programming knowledge a fresh agent already knows)
 - **Non-obvious** (would surprise someone reading the codebase cold — if the code makes it self-evident, skip)
 - **Durably true** (still correct in three months — not current task state, not a temporary workaround)
 - **Not already in CLAUDE.md or MEMORY.md**
@@ -218,10 +218,10 @@ When it IS active, apply a strict quality filter before suggesting anything. The
 - Format per `DECISIONS.md.template` bundled with this skill
 - If no `<project-root>/DECISIONS.md` exists, apply the **DECISIONS.md fallback** (see File Locations) before creating a new one from the template
 
-**→ CLAUDE.md** (target: `<project-root>/CLAUDE.md`, only after user confirmation):
+**→ CLAUDE.md or AGENTS.md** (target: the project's rules file, `<project-root>/CLAUDE.md` or `<project-root>/AGENTS.md`, only after user confirmation):
 - Sections to consider: Architecture, Conventions, Environment & Setup, Discoveries & Gotchas
 - If after the quality filter nothing remains, say so explicitly and do **not** prompt — silence is the right answer.
-- If no `<project-root>/CLAUDE.md` exists, suggest creating one from `CLAUDE.md.template`
+- If no rules file exists, suggest creating one from `CLAUDE.md.template` (as `AGENTS.md` in Codex and other agents)
 
 **Present neutrally — do not lead the user toward yes:**
 
@@ -270,7 +270,7 @@ After writing the file:
 
 1. Run the helper preamble (`paths --cwd "$PWD"`) to resolve all locations and existence flags in one call.
 2. Read `HANDOFF.md` using the JSON output: prefer `handoff.current` if `current_exists` is true; otherwise apply the **HANDOFF.md fallback** if `handoff.legacy_exists` is true — offer migration via `python3 "$HELPER" migrate --src <legacy> --dst <current>` after user confirmation.
-3. Read `MEMORY.md` using `memory_md.resolved` from the helper output (already resolved against both primary and legacy paths).
+3. Read `MEMORY.md` using `memory_md.resolved` from the helper output (already resolved against both primary and legacy paths). If it is `null`, continue without it.
 4. If no HANDOFF.md is found in either location, tell the user and start fresh.
 
 MEMORY.md provides stable project knowledge (managed by auto-memory). HANDOFF.md provides the specific resume point. Use both together — MEMORY.md for "what is this project" and HANDOFF.md for "where exactly did we stop."
@@ -305,7 +305,7 @@ Omit sections that are empty in the handoff.
 
 ### Step 3: Ask What To Continue With
 
-Ask the user what they'd like to work on. If there are distinct open items, use AskUserQuestion to let them pick. Otherwise ask as free text.
+Ask the user what they'd like to work on. If there are distinct open items, ask a structured question to let them pick (Claude Code: `AskUserQuestion`, Codex: `request_user_input`; otherwise numbered options in the text). Otherwise ask as free text.
 
 ### Step 4: Archive
 
@@ -376,8 +376,8 @@ When significant work has accumulated and the conversation is getting long, sugg
 
 ## Boundaries
 
-- **MEMORY.md is read-only.** It's managed by the auto-memory system and lives at `~/.claude/projects/<cwd-slug>/memory/` by default. This skill reads it but never writes to it.
-- **CLAUDE.md** lives in the project root and may only be modified when `--learn` is enabled and the user confirms the suggested additions.
+- **MEMORY.md is read-only and optional.** In Claude Code it's managed by the auto-memory system and lives at `~/.claude/projects/<cwd-slug>/memory/` by default; other agents usually have none. This skill reads it but never writes to it.
+- **CLAUDE.md / AGENTS.md** lives in the project root and may only be modified when `--learn` is enabled and the user confirms the suggested additions.
 - **DECISIONS.md** lives in the project root. It is appended automatically when `--learn` is enabled — no confirmation needed because entries are factual, chronological, and additive (a bad entry is trivially reverted by deleting one block).
 - **HANDOFF.md is ephemeral.** It represents a single session transition, lives in `<project-root>/.claude/memory/`, and must be gitignored. Stable knowledge belongs in CLAUDE.md, decisions in DECISIONS.md.
 - See **File Locations** at the top of this document for the full resolver and fallback rules.
