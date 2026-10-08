@@ -1,9 +1,9 @@
 {
   "name": "session",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Session continuity with file-based handoff — saves and restores context across coding-agent sessions (Claude Code, Codex)",
   "author": {
-    "name": "Internet Marketing Agentur",
+    "name": "IMA GmbH · Marketing & Consulting",
     "email": "a.draeger@internet-marketing-agentur.com",
     "url": "https://github.com/Internet-Marketing-Agentur"
   },

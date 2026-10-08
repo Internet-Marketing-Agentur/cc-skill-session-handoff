@@ -1,9 +1,9 @@
 {
   "name": "session",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Session continuity with file-based handoff — saves and restores context across coding-agent sessions (Claude Code, Codex)",
   "author": {
-    "name": "Internet Marketing Agentur",
+    "name": "IMA GmbH · Marketing & Consulting",
     "email": "a.draeger@internet-marketing-agentur.com",
     "url": "https://github.com/Internet-Marketing-Agentur"
   },
@@ -18,7 +18,7 @@
     "displayName": "Session Handoff",
     "shortDescription": "Sitzungskontext sichern und fortsetzen",
     "longDescription": "Speichert den Arbeitsstand einer Agent-Sitzung als HANDOFF.md und stellt ihn in der nächsten Sitzung wieder her.",
-    "developerName": "Internet Marketing Agentur",
+    "developerName": "IMA GmbH · Marketing & Consulting",
     "category": "Productivity",
     "capabilities": [],
     "defaultPrompt": "Speichere die Session, damit ich später weitermachen kann."
