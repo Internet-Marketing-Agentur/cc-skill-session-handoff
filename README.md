@@ -18,7 +18,7 @@ Every save auto-detects stable insights from the session and routes them into CL
 Clone into your Claude Code skills directory:
 
 ```bash
-git clone https://github.com/Internet-Marketing-Agentur/cc-skill-session-handoff.git \
+git clone https://github.com/Internet-Marketing-Agentur/skill-session.git \
   ~/.claude/skills/session
 ```
 
@@ -148,7 +148,7 @@ After resuming, Claude presents a summary and asks where to continue.
 ## File structure
 
 ```
-cc-skill-session-handoff/
+skill-session/
 ├── .claude-plugin/
 │   └── plugin.json              # Plugin manifest (name, version, author)
 ├── commands/
